@@ -1,0 +1,10 @@
+# Proje dokümanları ve araç çıktıları
+.docs/
+.superpowers/
+
+# Ortam değişkenleri
+.env*
+!.env.example
+
+# Maven
+target/
