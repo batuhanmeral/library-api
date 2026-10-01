@@ -1,10 +1,15 @@
-# Proje dokümanları ve araç çıktıları
+# Local project docs and tool output
 .docs/
 .superpowers/
 
-# Ortam değişkenleri
+# Environment variables
 .env*
 !.env.example
 
 # Maven
 target/
+
+# IDE
+.idea/
+*.iml
+.vscode/

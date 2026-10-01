@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: library-api
+  datasource:
+    # In-memory H2 database; data is lost when the application stops.
+    url: jdbc:h2:mem:library
+  jpa:
+    # Do not keep the database session open while the HTTP response is written.
+    open-in-view: false
+  h2:
+    console:
+      # Web console at /h2-console. It only accepts connections from localhost.
+      enabled: true
+
+logging:
+  level:
+    # Print the SQL statements Hibernate runs.
+    org.hibernate.SQL: debug
