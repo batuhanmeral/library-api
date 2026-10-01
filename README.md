@@ -17,7 +17,37 @@ A REST API for running a small library: the book catalog, its members and their 
 
 ## Status
 
-The project is in its design stage and has no runnable code yet. Build, run and test commands will be added with the first implementation step.
+Work in progress. Available now: create, list, read, update and delete book categories under `/api/v1/categories`. Data is kept in an in-memory database and is lost when the application stops.
+
+## Requirements
+
+- JDK 21 or newer. Maven is not needed; the Maven Wrapper (`./mvnw`) downloads it.
+
+## Run
+
+```bash
+./mvnw spring-boot:run
+```
+
+The API listens on `http://localhost:8080/api/v1`. Try it:
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/categories \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "Science", "description": "Popular science books"}'
+curl http://localhost:8080/api/v1/categories
+```
+
+The H2 database console is at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:library`, user `sa`, empty password).
+
+A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment.
+
+## Test
+
+```bash
+./mvnw verify            # compile, run the tests and check code format
+./mvnw spotless:apply    # fix code format
+```
 
 ## License
 
