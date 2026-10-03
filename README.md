@@ -17,7 +17,34 @@ A REST API for running a small library: the book catalog, its members and their 
 
 ## Status
 
-Work in progress. Available now: create, list, read, update and delete book categories under `/api/v1/categories`. Data is kept in an in-memory database and is lost when the application stops.
+Work in progress. Available now: create, list, read, update and delete book categories under `/api/v1/categories`. Category names are unique, up to 100 characters; descriptions are up to 500 characters. Data is kept in an in-memory database and is lost when the application stops.
+
+## Errors
+
+Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`) with an extra `errorCode` field to branch on:
+
+```json
+{
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "The request has invalid fields.",
+  "instance": "/api/v1/categories",
+  "errorCode": "VALIDATION_FAILED",
+  "errors": [{ "field": "name", "message": "must not be blank" }]
+}
+```
+
+| errorCode | Status | When |
+|---|---|---|
+| `VALIDATION_FAILED` | 400 | A field is missing or invalid; `errors` lists each field |
+| `MALFORMED_REQUEST` | 400 | The body is not valid JSON or a path value has the wrong type |
+| `RESOURCE_NOT_FOUND` | 404 | No resource with that id, or no such path |
+| `METHOD_NOT_ALLOWED` | 405 | The path does not support the HTTP method |
+| `DUPLICATE_RESOURCE` | 409 | The name is already taken |
+| `DATA_CONFLICT` | 409 | The change conflicts with existing data |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
+| `REQUEST_REJECTED` | 4xx | Any other client error |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ## Requirements
 

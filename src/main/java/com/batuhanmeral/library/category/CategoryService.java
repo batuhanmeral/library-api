@@ -1,47 +1,60 @@
 package com.batuhanmeral.library.category;
 
+import com.batuhanmeral.library.category.dto.CategoryRequest;
+import com.batuhanmeral.library.category.dto.CategoryResponse;
+import com.batuhanmeral.library.common.error.DuplicateResourceException;
+import com.batuhanmeral.library.common.error.ResourceNotFoundException;
 import java.util.List;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final CategoryMapper categoryMapper;
 
-    public CategoryService(CategoryRepository categoryRepository) {
-        this.categoryRepository = categoryRepository;
+    public List<CategoryResponse> findAll() {
+        return categoryRepository.findAll().stream().map(categoryMapper::toResponse).toList();
     }
 
-    public List<Category> findAll() {
-        return categoryRepository.findAll();
+    public CategoryResponse findById(Long id) {
+        return categoryMapper.toResponse(getCategory(id));
     }
 
-    public Optional<Category> findById(Long id) {
-        return categoryRepository.findById(id);
+    public CategoryResponse create(CategoryRequest request) {
+        if (categoryRepository.existsByName(request.name())) {
+            throw nameTaken(request.name());
+        }
+        Category saved = categoryRepository.save(categoryMapper.toEntity(request));
+        return categoryMapper.toResponse(saved);
     }
 
-    public Category create(Category request) {
-        // Copy only the fields a client may set; an id in the request body is ignored.
-        Category category = new Category(request.getName(), request.getDescription());
-        return categoryRepository.save(category);
+    public CategoryResponse update(Long id, CategoryRequest request) {
+        Category category = getCategory(id);
+        if (categoryRepository.existsByNameAndIdNot(request.name(), id)) {
+            throw nameTaken(request.name());
+        }
+        categoryMapper.updateEntity(request, category);
+        return categoryMapper.toResponse(categoryRepository.save(category));
     }
 
-    public Optional<Category> update(Long id, Category request) {
-        return categoryRepository
-                .findById(id)
-                .map(category -> {
-                    category.setName(request.getName());
-                    category.setDescription(request.getDescription());
-                    return categoryRepository.save(category);
-                });
-    }
-
-    public boolean delete(Long id) {
+    public void delete(Long id) {
         if (!categoryRepository.existsById(id)) {
-            return false;
+            throw new ResourceNotFoundException("Category", id);
         }
         categoryRepository.deleteById(id);
-        return true;
+    }
+
+    private Category getCategory(Long id) {
+        return categoryRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category", id));
+    }
+
+    private static DuplicateResourceException nameTaken(String name) {
+        return new DuplicateResourceException(
+                "A category named '%s' already exists.".formatted(name));
     }
 }

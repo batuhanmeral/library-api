@@ -1,11 +1,17 @@
 package com.batuhanmeral.library.category;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.batuhanmeral.library.category.dto.CategoryRequest;
+import com.batuhanmeral.library.category.dto.CategoryResponse;
+import com.batuhanmeral.library.common.error.DuplicateResourceException;
+import com.batuhanmeral.library.common.error.ErrorCode;
+import com.batuhanmeral.library.common.error.ResourceNotFoundException;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,8 +29,8 @@ class CategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        // No Spring container: the dependency is passed to the constructor by hand.
-        categoryService = new CategoryService(categoryRepository);
+        // No Spring container: the repository is a mock, the mapper is the generated class.
+        categoryService = new CategoryService(categoryRepository, new CategoryMapperImpl());
     }
 
     @Test
@@ -32,15 +38,36 @@ class CategoryServiceTest {
         when(categoryRepository.save(any(Category.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Category request = new Category("Science", "Popular science");
-        categoryService.create(request);
+        CategoryResponse response =
+                categoryService.create(new CategoryRequest("Science", "Popular science"));
 
         ArgumentCaptor<Category> saved = ArgumentCaptor.forClass(Category.class);
         verify(categoryRepository).save(saved.capture());
-        assertThat(saved.getValue()).isNotSameAs(request);
         assertThat(saved.getValue().getId()).isNull();
         assertThat(saved.getValue().getName()).isEqualTo("Science");
         assertThat(saved.getValue().getDescription()).isEqualTo("Popular science");
+        assertThat(response.name()).isEqualTo("Science");
+    }
+
+    @Test
+    void createRejectsANameThatIsAlreadyTaken() {
+        when(categoryRepository.existsByName("Science")).thenReturn(true);
+
+        assertThatThrownBy(() -> categoryService.create(new CategoryRequest("Science", null)))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessage("A category named 'Science' already exists.")
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DUPLICATE_RESOURCE);
+        verify(categoryRepository, never()).save(any());
+    }
+
+    @Test
+    void findByIdThrowsWhenTheCategoryDoesNotExist() {
+        when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> categoryService.findById(99L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Category with id 99 was not found.");
     }
 
     @Test
@@ -49,21 +76,32 @@ class CategoryServiceTest {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(categoryRepository.save(existing)).thenReturn(existing);
 
-        Optional<Category> result =
-                categoryService.update(1L, new Category("New name", "New description"));
+        CategoryResponse result =
+                categoryService.update(1L, new CategoryRequest("New name", "New description"));
 
-        assertThat(result).containsSame(existing);
+        assertThat(result.name()).isEqualTo("New name");
         assertThat(existing.getName()).isEqualTo("New name");
         assertThat(existing.getDescription()).isEqualTo("New description");
     }
 
     @Test
-    void updateReturnsEmptyWhenTheCategoryDoesNotExist() {
+    void updateThrowsWhenTheCategoryDoesNotExist() {
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
-        Optional<Category> result = categoryService.update(99L, new Category("Name", null));
+        assertThatThrownBy(() -> categoryService.update(99L, new CategoryRequest("Name", null)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(categoryRepository, never()).save(any());
+    }
 
-        assertThat(result).isEmpty();
+    @Test
+    void updateRejectsANameUsedByAnotherCategory() {
+        Category existing = new Category("History", null);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepository.existsByNameAndIdNot("Science", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> categoryService.update(1L, new CategoryRequest("Science", null)))
+                .isInstanceOf(DuplicateResourceException.class);
+        assertThat(existing.getName()).isEqualTo("History");
         verify(categoryRepository, never()).save(any());
     }
 
@@ -71,15 +109,17 @@ class CategoryServiceTest {
     void deleteRemovesAnExistingCategory() {
         when(categoryRepository.existsById(1L)).thenReturn(true);
 
-        assertThat(categoryService.delete(1L)).isTrue();
+        categoryService.delete(1L);
+
         verify(categoryRepository).deleteById(1L);
     }
 
     @Test
-    void deleteReturnsFalseWhenTheCategoryDoesNotExist() {
+    void deleteThrowsWhenTheCategoryDoesNotExist() {
         when(categoryRepository.existsById(99L)).thenReturn(false);
 
-        assertThat(categoryService.delete(99L)).isFalse();
+        assertThatThrownBy(() -> categoryService.delete(99L))
+                .isInstanceOf(ResourceNotFoundException.class);
         verify(categoryRepository, never()).deleteById(any());
     }
 }
