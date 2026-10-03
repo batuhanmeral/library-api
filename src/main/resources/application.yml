@@ -12,6 +12,10 @@ spring:
   jpa:
     # Do not keep the database session open while the HTTP response is written.
     open-in-view: false
+    hibernate:
+      # Flyway creates the schema (src/main/resources/db/migration). Hibernate
+      # only checks at startup that the entities match it.
+      ddl-auto: validate
   h2:
     console:
       # Web console at /h2-console. It only accepts connections from localhost.
