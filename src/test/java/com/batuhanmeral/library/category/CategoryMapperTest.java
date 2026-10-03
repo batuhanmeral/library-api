@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.batuhanmeral.library.category.dto.CategoryRequest;
 import com.batuhanmeral.library.category.dto.CategoryResponse;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -22,13 +23,20 @@ class CategoryMapperTest {
     }
 
     @Test
-    void toResponseCopiesAllFieldsIncludingTheId() {
+    void toResponseCopiesAllFieldsIncludingTheIdAndTheTimestamps() {
         Category category = new Category("Science", "Popular science");
+        Instant createdAt = Instant.parse("2026-11-24T10:00:00Z");
+        Instant updatedAt = Instant.parse("2026-11-24T11:00:00Z");
         ReflectionTestUtils.setField(category, "id", 7L);
+        ReflectionTestUtils.setField(category, "createdAt", createdAt);
+        ReflectionTestUtils.setField(category, "updatedAt", updatedAt);
 
         CategoryResponse response = mapper.toResponse(category);
 
-        assertThat(response).isEqualTo(new CategoryResponse(7L, "Science", "Popular science"));
+        assertThat(response)
+                .isEqualTo(
+                        new CategoryResponse(
+                                7L, "Science", "Popular science", createdAt, updatedAt));
     }
 
     @Test

@@ -7,10 +7,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.category.dto.CategoryRequest;
 import com.batuhanmeral.library.category.dto.CategoryResponse;
 import com.batuhanmeral.library.common.error.DuplicateResourceException;
 import com.batuhanmeral.library.common.error.ErrorCode;
+import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,12 +27,15 @@ class CategoryServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
 
+    @Mock private BookRepository bookRepository;
+
     private CategoryService categoryService;
 
     @BeforeEach
     void setUp() {
         // No Spring container: the repository is a mock, the mapper is the generated class.
-        categoryService = new CategoryService(categoryRepository, new CategoryMapperImpl());
+        categoryService =
+                new CategoryService(categoryRepository, bookRepository, new CategoryMapperImpl());
     }
 
     @Test
@@ -74,7 +79,6 @@ class CategoryServiceTest {
     void updateCopiesNameAndDescriptionToTheExistingCategory() {
         Category existing = new Category("Old name", "Old description");
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(categoryRepository.save(existing)).thenReturn(existing);
 
         CategoryResponse result =
                 categoryService.update(1L, new CategoryRequest("New name", "New description"));
@@ -82,6 +86,10 @@ class CategoryServiceTest {
         assertThat(result.name()).isEqualTo("New name");
         assertThat(existing.getName()).isEqualTo("New name");
         assertThat(existing.getDescription()).isEqualTo("New description");
+        // No save(): the loaded entity is managed, dirty checking writes the change. The flush
+        // runs the UPDATE before the response is built, so updatedAt is already set in it.
+        verify(categoryRepository, never()).save(any());
+        verify(categoryRepository).flush();
     }
 
     @Test
@@ -112,6 +120,19 @@ class CategoryServiceTest {
         categoryService.delete(1L);
 
         verify(categoryRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteRejectsACategoryThatBooksUse() {
+        when(categoryRepository.existsById(1L)).thenReturn(true);
+        when(bookRepository.existsByCategoriesId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> categoryService.delete(1L))
+                .isInstanceOf(ResourceInUseException.class)
+                .hasMessage("Category with id 1 is used by books and cannot be deleted.")
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.RESOURCE_IN_USE);
+        verify(categoryRepository, never()).deleteById(any());
     }
 
     @Test

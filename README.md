@@ -17,7 +17,20 @@ A REST API for running a small library: the book catalog, its members and their 
 
 ## Status
 
-Work in progress. Available now: create, list, read, update and delete book categories under `/api/v1/categories`. Category names are unique, up to 100 characters; descriptions are up to 500 characters. Data is kept in an in-memory database and is lost when the application stops.
+Work in progress. Available now, under `/api/v1`:
+
+| Resource | Endpoints |
+|---|---|
+| Categories | `GET /categories`, `GET /categories/{id}`, `POST /categories`, `PUT /categories/{id}`, `DELETE /categories/{id}` |
+| Authors | `GET /authors`, `GET /authors/{id}`, `GET /authors/{id}/books`, `POST /authors`, `PUT /authors/{id}`, `DELETE /authors/{id}` |
+| Books | `GET /books`, `GET /books/{id}`, `POST /books`, `PUT /books/{id}`, `DELETE /books/{id}` |
+
+- Category names are unique, up to 100 characters; descriptions are up to 500 characters.
+- A book has a title, an optional unique ISBN (10 or 13 digits), one author and any number of categories, sent as `authorId` and `categoryIds`. All copies of a new book are available; changing `totalCopies` changes `availableCopies` by the same amount.
+- An author who has books, or a category that books use, cannot be deleted.
+- Every response has `createdAt` and `updatedAt` timestamps.
+
+Data is kept in an in-memory database and is lost when the application stops.
 
 ## Errors
 
@@ -38,9 +51,10 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 |---|---|---|
 | `VALIDATION_FAILED` | 400 | A field is missing or invalid; `errors` lists each field |
 | `MALFORMED_REQUEST` | 400 | The body is not valid JSON or a path value has the wrong type |
-| `RESOURCE_NOT_FOUND` | 404 | No resource with that id, or no such path |
+| `RESOURCE_NOT_FOUND` | 404 | No resource with that id (also an `authorId` or `categoryIds` entry in a book), or no such path |
 | `METHOD_NOT_ALLOWED` | 405 | The path does not support the HTTP method |
-| `DUPLICATE_RESOURCE` | 409 | The name is already taken |
+| `DUPLICATE_RESOURCE` | 409 | The name or ISBN is already taken |
+| `RESOURCE_IN_USE` | 409 | The author has books, or books use the category |
 | `DATA_CONFLICT` | 409 | The change conflicts with existing data |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
 | `REQUEST_REJECTED` | 4xx | Any other client error |

@@ -14,6 +14,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -27,9 +29,13 @@ class CategoryApiIntegrationTest {
 
     @Autowired private CategoryRepository categoryRepository;
 
+    @Autowired private JdbcTemplate jdbcTemplate;
+
     @BeforeEach
     void cleanDatabase() {
-        categoryRepository.deleteAll();
+        // Other test classes share this database; rows that point to categories go first.
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
     }
 
     @Test
@@ -44,6 +50,8 @@ class CategoryApiIntegrationTest {
                 .hasValue("Location", "http://localhost" + CATEGORIES + "/" + id);
         assertThat(result).bodyJson().extractingPath("$.name").isEqualTo("Science");
         assertThat(result).bodyJson().extractingPath("$.description").isEqualTo("Popular science");
+        assertThat(result).bodyJson().extractingPath("$.createdAt").isNotNull();
+        assertThat(result).bodyJson().extractingPath("$.updatedAt").isNotNull();
     }
 
     @Test

@@ -221,11 +221,513 @@
           }
         }
       ]
+    },
+    {
+      "name": "Authors",
+      "item": [
+        {
+          "name": "Create author",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Audit timestamps are set\", () => {",
+                  "    pm.expect(pm.response.json().createdAt).to.be.a(\"string\");",
+                  "    pm.expect(pm.response.json().updatedAt).to.be.a(\"string\");",
+                  "});",
+                  "// Save the new id so the requests below can use {{authorId}}.",
+                  "pm.collectionVariables.set(\"authorId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/authors",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"J. R. R. Tolkien\",\n  \"biography\": \"English writer and philologist\",\n  \"birthDate\": \"1892-01-03\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List authors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/authors"
+          }
+        },
+        {
+          "name": "Get author by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Returns the requested author\", () => {",
+                  "    pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get(\"authorId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/authors/{{authorId}}"
+          }
+        },
+        {
+          "name": "Update author",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"updatedAt moved forward\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(new Date(body.updatedAt) > new Date(body.createdAt)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/authors/{{authorId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Ronald Reuel Tolkien\",\n  \"biography\": \"English writer and philologist\",\n  \"birthDate\": \"1892-01-03\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "Create category for books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"bookCategoryId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/categories",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Fantasy\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"All copies are available\", () => pm.expect(pm.response.json().availableCopies).to.eql(3));",
+                  "pm.test(\"Has the author and the category\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.author.id).to.eql(Number(pm.collectionVariables.get(\"authorId\")));",
+                  "    pm.expect(body.categories.map(c => c.name)).to.include(\"Fantasy\");",
+                  "});",
+                  "pm.collectionVariables.set(\"bookId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"9780547928227\",\n  \"title\": \"The Hobbit\",\n  \"publishedYear\": 1937,\n  \"pageCount\": 310,\n  \"totalCopies\": 3,\n  \"authorId\": {{authorId}},\n  \"categoryIds\": [{{bookCategoryId}}]\n}"
+            }
+          }
+        },
+        {
+          "name": "Create book with a taken ISBN (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Body is a problem detail\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});",
+                  "pm.test(\"errorCode is DUPLICATE_RESOURCE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"DUPLICATE_RESOURCE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"9780547928227\",\n  \"title\": \"Another book\",\n  \"totalCopies\": 1,\n  \"authorId\": {{authorId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Create book for an unknown author (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Body is a problem detail\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});",
+                  "pm.test(\"errorCode is RESOURCE_NOT_FOUND\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Nobody wrote this\",\n  \"totalCopies\": 1,\n  \"authorId\": 999999\n}"
+            }
+          }
+        },
+        {
+          "name": "Create invalid book (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Body is a problem detail\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});",
+                  "pm.test(\"errorCode is VALIDATION_FAILED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"Lists the invalid fields\", () => {",
+                  "    pm.expect(pm.response.json().errors.map(e => e.field)).to.include.members([\"isbn\", \"title\", \"totalCopies\", \"authorId\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"12-34\",\n  \"title\": \"\",\n  \"totalCopies\": -1\n}"
+            }
+          }
+        },
+        {
+          "name": "List books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books"
+          }
+        },
+        {
+          "name": "Get book by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Returns the requested book\", () => pm.expect(pm.response.json().title).to.eql(\"The Hobbit\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "List the author's books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contains the new book\", () => {",
+                  "    pm.expect(pm.response.json().map(b => b.id)).to.include(Number(pm.collectionVariables.get(\"bookId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/authors/{{authorId}}/books"
+          }
+        },
+        {
+          "name": "Update book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Copies were changed\", () => {",
+                  "    pm.expect(pm.response.json().totalCopies).to.eql(5);",
+                  "    pm.expect(pm.response.json().availableCopies).to.eql(5);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/books/{{bookId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"9780547928227\",\n  \"title\": \"The Hobbit\",\n  \"description\": \"There and back again\",\n  \"publishedYear\": 1937,\n  \"pageCount\": 310,\n  \"totalCopies\": 5,\n  \"authorId\": {{authorId}},\n  \"categoryIds\": [{{bookCategoryId}}]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete author with books (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Body is a problem detail\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});",
+                  "pm.test(\"errorCode is RESOURCE_IN_USE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_IN_USE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/authors/{{authorId}}"
+          }
+        },
+        {
+          "name": "Delete category used by a book (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Body is a problem detail\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});",
+                  "pm.test(\"errorCode is RESOURCE_IN_USE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_IN_USE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/categories/{{bookCategoryId}}"
+          }
+        },
+        {
+          "name": "Delete book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "Delete category for books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/categories/{{bookCategoryId}}"
+          }
+        },
+        {
+          "name": "Delete author",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/authors/{{authorId}}"
+          }
+        },
+        {
+          "name": "Get deleted author (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Body is a problem detail\", () => {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+                  "});",
+                  "pm.test(\"errorCode is RESOURCE_NOT_FOUND\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/authors/{{authorId}}"
+          }
+        }
+      ]
     }
   ],
   "variable": [
     {
       "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "authorId",
+      "value": ""
+    },
+    {
+      "key": "bookCategoryId",
+      "value": ""
+    },
+    {
+      "key": "bookId",
       "value": ""
     }
   ]
