@@ -1,0 +1,27 @@
+# Local PostgreSQL for the dev profile. Values come from .env (copy .env.example).
+#   docker compose up -d      start in the background
+#   docker compose down       stop; the data stays in the volume
+#   docker compose down -v    stop and delete the data
+services:
+  postgres:
+    # Pinned by digest: the tag can be moved to another image, the digest cannot.
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      # Only this machine can connect, not the rest of the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      # PostgreSQL 18 images keep their data under /var/lib/postgresql/18/docker.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      # $$ escapes Compose interpolation; the variables are read inside the container.
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -1,0 +1,16 @@
+# Local development against the PostgreSQL container in docker-compose.yml.
+# ./mvnw spring-boot:run turns this profile on (see pom.xml).
+spring:
+  config:
+    # Read POSTGRES_* from .env in the working directory, the same file Docker
+    # Compose reads. Real environment variables win over the file.
+    import: optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5434}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+logging:
+  level:
+    # Print the SQL statements Hibernate runs.
+    org.hibernate.SQL: debug

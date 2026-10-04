@@ -30,7 +30,7 @@ Work in progress. Available now, under `/api/v1`:
 - An author who has books, or a category that books use, cannot be deleted.
 - Every response has `createdAt` and `updatedAt` timestamps.
 
-Data is kept in an in-memory database and is lost when the application stops.
+Data is stored in PostgreSQL.
 
 ## Errors
 
@@ -63,11 +63,26 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 ## Requirements
 
 - JDK 21 or newer. Maven is not needed; the Maven Wrapper (`./mvnw`) downloads it.
+- Docker with Docker Compose, for the PostgreSQL database. The tests do not need it.
 
 ## Run
 
+Copy the example settings, set a password in `.env`, start PostgreSQL and the application:
+
 ```bash
+cp .env.example .env
+docker compose up -d --wait
 ./mvnw spring-boot:run
+```
+
+`./mvnw spring-boot:run` uses the `dev` profile: it connects to the database from `docker-compose.yml` on `localhost:5434` (`POSTGRES_PORT` in `.env`; change it if the port is busy) and logs SQL statements. The schema is created and updated by Flyway at startup. `docker compose down` stops the database and keeps the data; `docker compose down -v` deletes it too.
+
+To run the packaged application elsewhere, use the `prod` profile and pass the connection as environment variables:
+
+```bash
+./mvnw package
+SPRING_PROFILES_ACTIVE=prod DB_URL=jdbc:postgresql://db-host:5432/library \
+  DB_USERNAME=library DB_PASSWORD=... java -jar target/library-api-0.0.1-SNAPSHOT.jar
 ```
 
 The API listens on `http://localhost:8080/api/v1`. Try it:
@@ -79,14 +94,14 @@ curl -i -X POST http://localhost:8080/api/v1/categories \
 curl http://localhost:8080/api/v1/categories
 ```
 
-The H2 database console is at `http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:mem:library`, user `sa`, empty password).
+To look at the database: `docker compose exec postgres psql -U library library`.
 
 A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment.
 
 ## Test
 
 ```bash
-./mvnw verify            # compile, run the tests and check code format
+./mvnw verify            # compile, run the tests (in-memory H2) and check code format
 ./mvnw spotless:apply    # fix code format
 ```
 

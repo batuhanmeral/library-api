@@ -1,0 +1,8 @@
+# Production. The connection comes from environment variables. If DB_URL is
+# missing, the placeholder stays as text and startup fails with
+# "'url' must start with "jdbc"".
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}

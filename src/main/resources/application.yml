@@ -1,9 +1,9 @@
+# Settings shared by every profile. The database connection is set per profile:
+# application-dev.yml (local Docker PostgreSQL) and application-prod.yml
+# (environment variables). Tests set no profile and get an in-memory H2 database.
 spring:
   application:
     name: library-api
-  datasource:
-    # In-memory H2 database; data is lost when the application stops.
-    url: jdbc:h2:mem:library
   web:
     # Validation and error messages are always in English, whatever the
     # machine's or the client's language is.
@@ -16,12 +16,3 @@ spring:
       # Flyway creates the schema (src/main/resources/db/migration). Hibernate
       # only checks at startup that the entities match it.
       ddl-auto: validate
-  h2:
-    console:
-      # Web console at /h2-console. It only accepts connections from localhost.
-      enabled: true
-
-logging:
-  level:
-    # Print the SQL statements Hibernate runs.
-    org.hibernate.SQL: debug
