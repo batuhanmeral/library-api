@@ -2,10 +2,14 @@ package com.batuhanmeral.library.book;
 
 import com.batuhanmeral.library.book.dto.BookRequest;
 import com.batuhanmeral.library.book.dto.BookResponse;
+import com.batuhanmeral.library.book.dto.BookSearchCriteria;
+import com.batuhanmeral.library.common.web.PageResponse;
+import com.batuhanmeral.library.common.web.SortableFields;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,11 +28,21 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/books")
 public class BookController {
 
+    /** Also used by GET /authors/{id}/books, which returns the same book representation. */
+    public static final SortableFields SORTABLE =
+            SortableFields.of("id", "title", "publishedYear", "availableCopies", "createdAt");
+
     private final BookService bookService;
 
+    /**
+     * The criteria record is bound from the query string (page, size and sort go to the pageable).
+     * {@code @Valid} checks it the same way as a request body.
+     */
     @GetMapping
-    public List<BookResponse> findAll() {
-        return bookService.findAll();
+    public PageResponse<BookResponse> search(
+            @Valid BookSearchCriteria criteria,
+            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+        return PageResponse.from(bookService.search(criteria, SORTABLE.check(pageable)));
     }
 
     @GetMapping("/{id}")

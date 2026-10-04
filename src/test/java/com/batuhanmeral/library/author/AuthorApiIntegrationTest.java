@@ -75,16 +75,28 @@ class AuthorApiIntegrationTest {
     }
 
     @Test
-    void listReturnsAllAuthors() {
+    void listReturnsAPageOfAuthorsSortedByName() {
         post(AUTHORS, "{\"name\": \"Tolkien\"}");
         post(AUTHORS, "{\"name\": \"Le Guin\"}");
 
-        assertThat(mvc.get().uri(AUTHORS))
-                .hasStatus(HttpStatus.OK)
+        MvcTestResult result = mvc.get().uri(AUTHORS + "?size=1").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result)
                 .bodyJson()
-                .extractingPath("$[*].name")
+                .extractingPath("$.content[*].name")
                 .asArray()
-                .containsExactlyInAnyOrder("Tolkien", "Le Guin");
+                .containsExactly("Le Guin");
+        assertThat(result).bodyJson().extractingPath("$.totalElements").isEqualTo(2);
+        assertThat(result).bodyJson().extractingPath("$.totalPages").isEqualTo(2);
+    }
+
+    @Test
+    void listReturns400ForAFieldThatCannotBeSortedBy() {
+        assertProblem(
+                mvc.get().uri(AUTHORS + "?sort=biography").exchange(),
+                HttpStatus.BAD_REQUEST,
+                "INVALID_PARAMETER");
     }
 
     @Test
@@ -163,12 +175,15 @@ class AuthorApiIntegrationTest {
                 "/api/v1/books",
                 "{\"title\": \"Earthsea\", \"totalCopies\": 1, \"authorId\": " + leGuin + "}");
 
-        assertThat(mvc.get().uri(AUTHORS + "/{id}/books", tolkien))
-                .hasStatus(HttpStatus.OK)
+        MvcTestResult result = mvc.get().uri(AUTHORS + "/{id}/books", tolkien).exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result)
                 .bodyJson()
-                .extractingPath("$[*].title")
+                .extractingPath("$.content[*].title")
                 .asArray()
                 .containsExactly("The Hobbit");
+        assertThat(result).bodyJson().extractingPath("$.totalElements").isEqualTo(1);
     }
 
     @Test

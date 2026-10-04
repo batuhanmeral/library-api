@@ -1,27 +1,34 @@
 package com.batuhanmeral.library.book;
 
-import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 /**
- * Every method that returns books also fetches their author and categories with the same query
- * ({@code @EntityGraph}). Without it, reading those lazy relations for N books runs N more queries
- * for the authors and N for the categories (the N+1 problem).
+ * Methods that return books fetch their author with the same query ({@code @EntityGraph}). Without
+ * it, reading the lazy author of N books runs N more queries (the N+1 problem).
+ *
+ * <p>Paged methods do not fetch the categories. A collection fetch in a paged query returns one row
+ * per book and category, so LIMIT cannot count books. Hibernate 7 then pages in a subquery when it
+ * can; when it cannot (for example when sorting by a category), it loads every matching row and
+ * cuts the page in memory. The categories of a page are loaded in one extra query instead, see
+ * {@code @BatchSize} on {@link Book#getCategories()}.
  */
-public interface BookRepository extends JpaRepository<Book, Long> {
+public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
 
+    /** Search with optional filters, see {@link BookSpecifications}. */
     @Override
-    @EntityGraph(attributePaths = {"author", "categories"})
-    List<Book> findAll();
+    @EntityGraph(attributePaths = "author")
+    Page<Book> findAll(Specification<Book> specification, Pageable pageable);
 
+    /** A single book: fetching its categories in the same query is safe here. */
     @Override
     @EntityGraph(attributePaths = {"author", "categories"})
     Optional<Book> findById(Long id);
-
-    @EntityGraph(attributePaths = {"author", "categories"})
-    List<Book> findByAuthorId(Long authorId);
 
     boolean existsByIsbn(String isbn);
 

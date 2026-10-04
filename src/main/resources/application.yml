@@ -16,3 +16,13 @@ spring:
       # Flyway creates the schema (src/main/resources/db/migration). Hibernate
       # only checks at startup that the entities match it.
       ddl-auto: validate
+    properties:
+      # A paged query that also fetches a collection cannot be paged in SQL;
+      # Hibernate would load every matching row and cut the page in memory
+      # (warning HHH90003004). Fail instead, so such a query never ships.
+      hibernate.query.fail_on_pagination_over_collection_fetch: true
+  data:
+    web:
+      pageable:
+        # ?size=500 is served as a page of 100. The default size is 20.
+        max-page-size: 100

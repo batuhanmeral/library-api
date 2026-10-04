@@ -20,6 +20,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(name = "books")
@@ -60,8 +61,14 @@ public class Book extends BaseEntity {
     /**
      * Owning side of the book-category relationship. Category has no list of books; the
      * book_categories join table is written only from here.
+     *
+     * <p>When the categories of one book in a page are read, Hibernate loads those of up to 100
+     * books of the same persistence context in one query ({@code where book_id in (...)}). 100 is
+     * the largest page size, so a page needs one query for all its categories instead of one per
+     * book.
      */
     @ManyToMany
+    @BatchSize(size = 100)
     @JoinTable(
             name = "book_categories",
             joinColumns = @JoinColumn(name = "book_id"),

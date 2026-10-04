@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatusCode;
 public enum ErrorCode {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST),
     MALFORMED_REQUEST(HttpStatus.BAD_REQUEST),
+    INVALID_PARAMETER(HttpStatus.BAD_REQUEST),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT),

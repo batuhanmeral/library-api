@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,16 +92,67 @@ class BookApiIntegrationTest {
     }
 
     @Test
-    void listReturnsAllBooks() {
-        createHobbit();
+    void listReturnsTheFirstPageSortedByTitle() {
         post(BOOKS, bookJson("The Silmarillion", null, 1, authorId));
+        createHobbit();
 
-        assertThat(mvc.get().uri(BOOKS))
+        MvcTestResult result = mvc.get().uri(BOOKS).exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.content[*].title")
+                .asArray()
+                .containsExactly("The Hobbit", "The Silmarillion");
+        assertThat(result).bodyJson().extractingPath("$.page").isEqualTo(0);
+        assertThat(result).bodyJson().extractingPath("$.size").isEqualTo(20);
+        assertThat(result).bodyJson().extractingPath("$.totalElements").isEqualTo(2);
+        assertThat(result).bodyJson().extractingPath("$.totalPages").isEqualTo(1);
+    }
+
+    @Test
+    void listReturnsTheRequestedPageAndSortOrder() {
+        for (String title : List.of("A", "B", "C")) {
+            post(BOOKS, bookJson(title, null, 1, authorId));
+        }
+
+        MvcTestResult result = mvc.get().uri(BOOKS + "?page=1&size=2&sort=title,desc").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.content[*].title")
+                .asArray()
+                .containsExactly("A");
+        assertThat(result).bodyJson().extractingPath("$.page").isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.totalElements").isEqualTo(3);
+        assertThat(result).bodyJson().extractingPath("$.totalPages").isEqualTo(2);
+    }
+
+    @Test
+    void listCapsThePageSizeAt100() {
+        assertThat(mvc.get().uri(BOOKS + "?size=500"))
                 .hasStatus(HttpStatus.OK)
                 .bodyJson()
-                .extractingPath("$[*].title")
-                .asArray()
-                .containsExactlyInAnyOrder("The Hobbit", "The Silmarillion");
+                .extractingPath("$.size")
+                .isEqualTo(100);
+    }
+
+    @Test
+    void listReturns400ForAFieldThatCannotBeSortedBy() {
+        // An unknown property used to fail inside the query (PropertyReferenceException, 500); a
+        // path into a relation would sort on data the API does not show.
+        for (String sort : List.of("price", "author.biography", "categories.name")) {
+            MvcTestResult result = mvc.get().uri(BOOKS + "?sort={sort}", sort).exchange();
+
+            assertProblem(result, HttpStatus.BAD_REQUEST, "INVALID_PARAMETER");
+            assertThat(result)
+                    .bodyJson()
+                    .extractingPath("$.detail")
+                    .isEqualTo(
+                            "Cannot sort by this field. Sortable fields: availableCopies,"
+                                    + " createdAt, id, publishedYear, title.");
+        }
     }
 
     @Test
@@ -205,6 +257,99 @@ class BookApiIntegrationTest {
     }
 
     @Test
+    void searchByTitleFindsPartsOfTheTitleIgnoringCase() {
+        createHobbit();
+        post(BOOKS, bookJson("The Silmarillion", null, 1, authorId));
+
+        assertThat(titles(BOOKS + "?title={title}", "HOBB")).containsExactly("The Hobbit");
+        assertThat(titles(BOOKS + "?title={title}", "the")).hasSize(2);
+    }
+
+    @Test
+    void searchByTitleTreatsPercentAndUnderscoreAsPlainCharacters() {
+        for (String title : List.of("50% Off", "500 Days", "A_B", "AxB")) {
+            post(BOOKS, bookJson(title, null, 1, authorId));
+        }
+
+        // Unescaped, "50%" would match "500 Days" and "A_B" would match "AxB": in LIKE, % is
+        // any text and _ is any single character.
+        assertThat(titles(BOOKS + "?title={title}", "50%")).containsExactly("50% Off");
+        assertThat(titles(BOOKS + "?title={title}", "a_b")).containsExactly("A_B");
+    }
+
+    @Test
+    void searchCombinesAuthorCategoryAvailabilityAndYearFilters() {
+        long otherAuthor = idOf(post("/api/v1/authors", "{\"name\": \"Ursula K. Le Guin\"}"));
+        post(BOOKS, searchBookJson("The Hobbit", 1937, 1, authorId, fantasyId));
+        post(BOOKS, searchBookJson("The Silmarillion", 1977, 1, authorId, fantasyId));
+        post(BOOKS, searchBookJson("Unfinished Tales", 1980, 0, authorId, fantasyId));
+        post(BOOKS, searchBookJson("Letters", 1981, 1, authorId, classicsId));
+        post(BOOKS, searchBookJson("A Wizard of Earthsea", 1968, 1, otherAuthor, fantasyId));
+
+        assertThat(titles(BOOKS + "?authorId={id}", authorId)).hasSize(4);
+        assertThat(titles(BOOKS + "?categoryId={id}", classicsId)).containsExactly("Letters");
+        assertThat(titles(BOOKS + "?available=false")).containsExactly("Unfinished Tales");
+        assertThat(titles(BOOKS + "?yearFrom=1960&yearTo=1979"))
+                .containsExactly("A Wizard of Earthsea", "The Silmarillion");
+        assertThat(
+                        titles(
+                                BOOKS + "?authorId={a}&categoryId={c}&available=true&yearFrom=1930",
+                                authorId,
+                                fantasyId))
+                .containsExactly("The Hobbit", "The Silmarillion");
+    }
+
+    @Test
+    void filteringByACategoryStillReturnsAllCategoriesOfTheBook() {
+        createBook(
+                "{\"title\": \"The Hobbit\", \"totalCopies\": 1, \"authorId\": %d, \"categoryIds\": [%d, %d]}"
+                        .formatted(authorId, fantasyId, classicsId));
+
+        assertThat(mvc.get().uri(BOOKS + "?categoryId={id}", fantasyId))
+                .bodyJson()
+                .extractingPath("$.content[0].categories[*].name")
+                .asArray()
+                .containsExactlyInAnyOrder("Fantasy", "Classics");
+    }
+
+    @Test
+    void searchReturns400WhenTheYearRangeEndsBeforeItStarts() {
+        MvcTestResult result = mvc.get().uri(BOOKS + "?yearFrom=2000&yearTo=1990").exchange();
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "INVALID_PARAMETER");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("yearFrom must not be greater than yearTo.");
+    }
+
+    @Test
+    void searchReturns400ForFilterValuesOutOfRange() {
+        MvcTestResult result = mvc.get().uri(BOOKS + "?yearTo=0&authorId=-1").exchange();
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.errors[*].field")
+                .asArray()
+                .containsExactlyInAnyOrder("yearTo", "authorId");
+    }
+
+    @Test
+    void searchReturns400ForAFilterValueOfTheWrongType() {
+        // The record is built through its constructor, so a value that cannot be converted
+        // stops the binding: only that field is reported, the others are not validated.
+        MvcTestResult result = mvc.get().uri(BOOKS + "?yearFrom=abc&yearTo=0").exchange();
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.errors[*].field")
+                .asArray()
+                .containsExactly("yearFrom");
+    }
+
+    @Test
     void deleteReturns204AndRemovesTheBook() {
         long id = idOf(createHobbit());
 
@@ -234,6 +379,28 @@ class BookApiIntegrationTest {
                 BOOKS,
                 "{\"isbn\": \"9780547928227\", \"title\": \"The Hobbit\", \"totalCopies\": 1, \"authorId\": %d, \"categoryIds\": [%d]}"
                         .formatted(authorId, fantasyId));
+    }
+
+    private void createBook(String json) {
+        assertThat(post(BOOKS, json)).hasStatus(HttpStatus.CREATED);
+    }
+
+    /** The titles on the first page of a search, in the order the API returned them. */
+    private List<String> titles(String uriTemplate, Object... uriVariables) {
+        MvcTestResult result = mvc.get().uri(uriTemplate, uriVariables).exchange();
+        assertThat(result).hasStatus(HttpStatus.OK);
+        String json =
+                new String(result.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8);
+        return JsonPath.read(json, "$.content[*].title");
+    }
+
+    private static String searchBookJson(
+            String title, int year, int totalCopies, long authorId, long categoryId) {
+        return """
+        {"title": "%s", "publishedYear": %d, "totalCopies": %d, "authorId": %d,
+         "categoryIds": [%d]}
+        """
+                .formatted(title, year, totalCopies, authorId, categoryId);
     }
 
     private static String bookJson(String title, String isbn, int totalCopies, long authorId) {

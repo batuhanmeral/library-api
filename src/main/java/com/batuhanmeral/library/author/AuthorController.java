@@ -2,12 +2,16 @@ package com.batuhanmeral.library.author;
 
 import com.batuhanmeral.library.author.dto.AuthorRequest;
 import com.batuhanmeral.library.author.dto.AuthorResponse;
+import com.batuhanmeral.library.book.BookController;
 import com.batuhanmeral.library.book.BookService;
 import com.batuhanmeral.library.book.dto.BookResponse;
+import com.batuhanmeral.library.common.web.PageResponse;
+import com.batuhanmeral.library.common.web.SortableFields;
 import jakarta.validation.Valid;
 import java.net.URI;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,12 +30,16 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/authors")
 public class AuthorController {
 
+    private static final SortableFields SORTABLE =
+            SortableFields.of("id", "name", "birthDate", "createdAt");
+
     private final AuthorService authorService;
     private final BookService bookService;
 
     @GetMapping
-    public List<AuthorResponse> findAll() {
-        return authorService.findAll();
+    public PageResponse<AuthorResponse> findAll(
+            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        return PageResponse.from(authorService.findAll(SORTABLE.check(pageable)));
     }
 
     @GetMapping("/{id}")
@@ -40,8 +48,10 @@ public class AuthorController {
     }
 
     @GetMapping("/{id}/books")
-    public List<BookResponse> findBooks(@PathVariable Long id) {
-        return bookService.findByAuthor(id);
+    public PageResponse<BookResponse> findBooks(
+            @PathVariable Long id, @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+        return PageResponse.from(
+                bookService.findByAuthor(id, BookController.SORTABLE.check(pageable)));
     }
 
     @PostMapping

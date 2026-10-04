@@ -5,8 +5,9 @@ import com.batuhanmeral.library.author.dto.AuthorResponse;
 import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,8 +20,8 @@ public class AuthorService {
     private final BookRepository bookRepository;
     private final AuthorMapper authorMapper;
 
-    public List<AuthorResponse> findAll() {
-        return authorRepository.findAll().stream().map(authorMapper::toResponse).toList();
+    public Page<AuthorResponse> findAll(Pageable pageable) {
+        return authorRepository.findAll(pageable).map(authorMapper::toResponse);
     }
 
     public AuthorResponse findById(Long id) {
