@@ -811,6 +811,308 @@
           }
         }
       ]
+    },
+    {
+      "name": "Loans",
+      "description": "Uses the demo member that the dev profile creates (memberId in the environment). Books with loans cannot be deleted, so each run leaves one author and one book behind.",
+      "item": [
+        {
+          "name": "Create author for loans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"loanAuthorId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/authors",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Frank Herbert\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create a book with one copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"loanBookId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Dune\",\n  \"totalCopies\": 1,\n  \"authorId\": {{loanAuthorId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Borrow the book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Loan is active and due in 14 days\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql(\"ACTIVE\");",
+                  "    const days = (new Date(body.dueDate) - new Date(body.loanDate)) / 86400000;",
+                  "    pm.expect(days).to.eql(14);",
+                  "});",
+                  "pm.collectionVariables.set(\"loanId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/loans",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": {{memberId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Borrow the same book again (409, no copy left)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Error code is BOOK_NOT_AVAILABLE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"BOOK_NOT_AVAILABLE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/loans",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": {{memberId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Borrow as an unknown member (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404 Not Found\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Error code is RESOURCE_NOT_FOUND\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/loans",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": 999999\n}"
+            }
+          }
+        },
+        {
+          "name": "Get loan by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has the book\", () => pm.expect(pm.response.json().book.title).to.eql(\"Dune\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/loans/{{loanId}}"
+          }
+        },
+        {
+          "name": "List the member's active loans",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contains the new loan\", () => {",
+                  "    pm.expect(pm.response.json().content.map(l => l.id)).to.include(Number(pm.collectionVariables.get(\"loanId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/loans?memberId={{memberId}}&status=ACTIVE"
+          }
+        },
+        {
+          "name": "Lower the copies below those on loan (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Error code is COPIES_ON_LOAN\", () => pm.expect(pm.response.json().errorCode).to.eql(\"COPIES_ON_LOAN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/books/{{loanBookId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalCopies\": 0\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete a book with an active loan (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Error code is RESOURCE_IN_USE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_IN_USE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/books/{{loanBookId}}"
+          }
+        },
+        {
+          "name": "Return the book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Loan is returned\", () => pm.expect(pm.response.json().status).to.eql(\"RETURNED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/loans/{{loanId}}/return"
+          }
+        },
+        {
+          "name": "Return the book again (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Error code is LOAN_ALREADY_RETURNED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"LOAN_ALREADY_RETURNED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/loans/{{loanId}}/return"
+          }
+        },
+        {
+          "name": "Delete a book with a loan history (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Error code is RESOURCE_IN_USE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_IN_USE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/books/{{loanBookId}}"
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -828,6 +1130,18 @@
     },
     {
       "key": "bookId",
+      "value": ""
+    },
+    {
+      "key": "loanAuthorId",
+      "value": ""
+    },
+    {
+      "key": "loanBookId",
+      "value": ""
+    },
+    {
+      "key": "loanId",
       "value": ""
     }
   ]

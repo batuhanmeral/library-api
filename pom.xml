@@ -112,6 +112,12 @@
 							<artifactId>mapstruct-processor</artifactId>
 							<version>${mapstruct.version}</version>
 						</path>
+						<!-- Writes metadata for @ConfigurationProperties classes, so IDEs complete and
+						     document library.* keys in application.yml. Version from Spring Boot. -->
+						<path>
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-configuration-processor</artifactId>
+						</path>
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>

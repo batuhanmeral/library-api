@@ -10,7 +10,10 @@ import com.batuhanmeral.library.category.Category;
 import com.batuhanmeral.library.category.CategoryRepository;
 import com.batuhanmeral.library.common.error.DuplicateResourceException;
 import com.batuhanmeral.library.common.error.InvalidQueryParameterException;
+import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
+import com.batuhanmeral.library.loan.LoanRepository;
+import com.batuhanmeral.library.loan.LoanService;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,6 +36,7 @@ public class BookService {
     private final BookRepository bookRepository;
     private final AuthorRepository authorRepository;
     private final CategoryRepository categoryRepository;
+    private final LoanRepository loanRepository;
     private final BookMapper bookMapper;
 
     public Page<BookResponse> search(BookSearchCriteria criteria, Pageable pageable) {
@@ -100,10 +104,22 @@ public class BookService {
         return bookMapper.toResponse(book);
     }
 
+    /**
+     * A book with loans cannot be deleted: the loans point to it (fk_loans_book) and are the
+     * library's record of who had which book. Open loans get their own message.
+     */
     @Transactional
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {
             throw new ResourceNotFoundException("Book", id);
+        }
+        if (loanRepository.existsByBookIdAndStatusIn(id, LoanService.OPEN_STATUSES)) {
+            throw new ResourceInUseException(
+                    "Book with id %d has active loans and cannot be deleted.".formatted(id));
+        }
+        if (loanRepository.existsByBookId(id)) {
+            throw new ResourceInUseException(
+                    "Book with id %d has a loan history and cannot be deleted.".formatted(id));
         }
         // Hibernate deletes the book's rows in book_categories first: Book owns that table.
         bookRepository.deleteById(id);

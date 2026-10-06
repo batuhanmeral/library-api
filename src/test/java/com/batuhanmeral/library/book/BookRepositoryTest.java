@@ -12,17 +12,25 @@ import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
-@DataJpaTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
+@DataJpaTest(
+        properties = {
+            "spring.jpa.properties.hibernate.generate_statistics=true",
+            "logging.level.org.hibernate.SQL=debug"
+        })
 @Import(JpaAuditingConfig.class)
+@ExtendWith(OutputCaptureExtension.class)
 class BookRepositoryTest {
 
     @Autowired private TestEntityManager entityManager;
@@ -101,6 +109,20 @@ class BookRepositoryTest {
 
         assertThat(page.getTotalElements()).isEqualTo(3);
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
+    }
+
+    @Test
+    void theTitlePatternIsSentAsAParameterNotWrittenIntoTheSql(CapturedOutput output) {
+        BookSearchCriteria criteria = new BookSearchCriteria("le gu", null, null, null, null, null);
+
+        Page<Book> page =
+                bookRepository.findAll(
+                        BookSpecifications.matching(criteria), PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).extracting(Book::getTitle).containsExactly("Le Guin's book");
+        // A value written into the SQL makes every search a different statement for the
+        // database and the statement caches.
+        assertThat(output).contains("like ? escape").doesNotContain("%le gu%");
     }
 
     @Test

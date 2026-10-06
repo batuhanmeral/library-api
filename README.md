@@ -24,11 +24,12 @@ Work in progress. Available now, under `/api/v1`:
 | Categories | `GET /categories`, `GET /categories/{id}`, `POST /categories`, `PUT /categories/{id}`, `DELETE /categories/{id}` |
 | Authors | `GET /authors`, `GET /authors/{id}`, `GET /authors/{id}/books`, `POST /authors`, `PUT /authors/{id}`, `DELETE /authors/{id}` |
 | Books | `GET /books`, `GET /books/{id}`, `POST /books`, `PUT /books/{id}`, `PATCH /books/{id}`, `DELETE /books/{id}` |
+| Loans | `POST /loans`, `POST /loans/{id}/return`, `GET /loans/{id}`, `GET /loans` |
 
 - Category names are unique, up to 100 characters; descriptions are up to 500 characters.
 - A book has a title, an optional unique ISBN (10 or 13 digits), one author and any number of categories, sent as `authorId` and `categoryIds`. All copies of a new book are available; changing `totalCopies` changes `availableCopies` by the same amount.
 - `PUT /books/{id}` replaces the whole book; `PATCH /books/{id}` changes only the fields that are sent. A field cannot be cleared with `PATCH` (a `null` value is treated as not sent). A book can have at most 20 categories.
-- An author who has books, or a category that books use, cannot be deleted.
+- An author who has books, a category that books use, or a book that has loans cannot be deleted.
 - Every response has `createdAt` and `updatedAt` timestamps.
 
 ### Paging, sorting and search
@@ -57,6 +58,28 @@ curl 'http://localhost:8080/api/v1/books?title=hobbit&available=true&sort=publis
 
 The category list is not paged.
 
+### Loans
+
+Borrow a copy with `POST /loans` and `{"bookId": 1, "memberId": 1}`; the loan is due 14 days later. Return it with `POST /loans/{id}/return`. `GET /loans` is paged (newest first) and takes optional `status` (`ACTIVE`, `OVERDUE`, `RETURNED`) and `memberId` filters; it can be sorted by `id`, `loanDate`, `dueDate`, `returnDate` and `createdAt`.
+
+- A book with no available copy cannot be borrowed. If two members try to take the last copy at the same moment, one of them gets `CONCURRENT_UPDATE`.
+- A member can have at most 3 open (active or overdue) loans.
+- A member with a loan past its due date cannot borrow until it is returned.
+- `totalCopies` of a book cannot be set below the number of copies on loan.
+
+There are no user accounts yet: the member is sent in the request. With the `dev` profile, a demo member (`member@example.com`) is created at startup; on a new database its id is 1.
+
+The limit and the loan period are settings:
+
+```yaml
+library:
+  loan:
+    max-active-loans: 3
+    period-days: 14
+```
+
+They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or below 1.
+
 Data is stored in PostgreSQL.
 
 ## Errors
@@ -82,8 +105,14 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `RESOURCE_NOT_FOUND` | 404 | No resource with that id (also an `authorId` or `categoryIds` entry in a book), or no such path |
 | `METHOD_NOT_ALLOWED` | 405 | The path does not support the HTTP method |
 | `DUPLICATE_RESOURCE` | 409 | The name or ISBN is already taken |
-| `RESOURCE_IN_USE` | 409 | The author has books, or books use the category |
+| `RESOURCE_IN_USE` | 409 | The author has books, books use the category, or the book has loans |
 | `DATA_CONFLICT` | 409 | The change conflicts with existing data |
+| `CONCURRENT_UPDATE` | 409 | Another request changed the same data at the same time; reload and try again |
+| `BOOK_NOT_AVAILABLE` | 409 | The book has no copy left to borrow |
+| `COPIES_ON_LOAN` | 409 | `totalCopies` would be lower than the copies on loan |
+| `LOAN_ALREADY_RETURNED` | 409 | The loan was already returned |
+| `LOAN_LIMIT_REACHED` | 422 | The member already has the most open loans allowed |
+| `MEMBER_HAS_OVERDUE_LOAN` | 422 | The member has a loan past its due date |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
 | `REQUEST_REJECTED` | 4xx | Any other client error |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -124,7 +153,7 @@ curl http://localhost:8080/api/v1/categories
 
 To look at the database: `docker compose exec postgres psql -U library library`.
 
-A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment.
+A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment).
 
 ## Test
 

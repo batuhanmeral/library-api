@@ -2,6 +2,8 @@ package com.batuhanmeral.library.loan;
 
 import com.batuhanmeral.library.book.Book;
 import com.batuhanmeral.library.common.audit.BaseEntity;
+import com.batuhanmeral.library.common.error.BusinessRuleException;
+import com.batuhanmeral.library.common.error.ErrorCode;
 import com.batuhanmeral.library.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,22 +20,20 @@ import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 /**
  * One copy of a book lent to a member. The relationships exist only on this side: neither Book nor
- * User has a list of loans; loans are found with repository queries (step 6).
+ * User has a list of loans; loans are found with repository queries. There are no setters: a loan
+ * is created active and changes only through {@link #markReturned}.
  */
 @Entity
 @Table(name = "loans")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Loan extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Setter(AccessLevel.NONE)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -63,5 +63,15 @@ public class Loan extends BaseEntity {
         this.loanDate = loanDate;
         this.dueDate = loanDate.plusDays(periodDays);
         this.status = LoanStatus.ACTIVE;
+    }
+
+    /** Ends the loan. The caller puts the copy back on the book. */
+    public void markReturned(LocalDate returnDate) {
+        if (status == LoanStatus.RETURNED) {
+            throw new BusinessRuleException(
+                    ErrorCode.LOAN_ALREADY_RETURNED, "This loan was already returned.");
+        }
+        this.status = LoanStatus.RETURNED;
+        this.returnDate = returnDate;
     }
 }

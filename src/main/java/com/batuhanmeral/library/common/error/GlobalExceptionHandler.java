@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -78,8 +79,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request) {
         List<FieldViolation> errors =
                 ex.getBindingResult().getFieldErrors().stream()
-                        .map(error ->
-                                new FieldViolation(error.getField(), error.getDefaultMessage()))
+                        .map(error -> new FieldViolation(error.getField(), messageOf(error)))
                         .toList();
         ProblemDetail body = ex.getBody();
         body.setDetail("The request has invalid fields.");
@@ -111,6 +111,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             }
         }
         return super.handleExceptionInternal(ex, body, headers, statusCode, request);
+    }
+
+    /**
+     * A binding failure is a value that could not be converted, such as "LOST" for a loan status.
+     * Spring's message for it names the Java type and repeats the value; a fixed text is enough.
+     */
+    private static String messageOf(FieldError error) {
+        return error.isBindingFailure() ? "has an invalid value" : error.getDefaultMessage();
     }
 
     private static ProblemDetail problem(

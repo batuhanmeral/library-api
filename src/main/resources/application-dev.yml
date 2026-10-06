@@ -9,6 +9,9 @@ spring:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5434}/${POSTGRES_DB}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+  flyway:
+    # Also run db/dev: data for trying the API locally (a demo member).
+    locations: classpath:db/migration,classpath:db/dev
 
 logging:
   level:

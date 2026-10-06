@@ -3,6 +3,7 @@ package com.batuhanmeral.library.book;
 import com.batuhanmeral.library.book.dto.BookSearchCriteria;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.data.jpa.domain.PredicateSpecification;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -42,11 +43,14 @@ final class BookSpecifications {
         return Specification.where(PredicateSpecification.allOf(filters));
     }
 
+    /**
+     * The pattern is passed as a plain String, so Hibernate binds it as a parameter ({@code like ?
+     * escape '\'}); {@code cb.literal(...)} would write it into the SQL text. It is lowercased here
+     * with fixed rules (Locale.ROOT), the column with the database's lower().
+     */
     static PredicateSpecification<Book> titleContains(String text) {
-        String pattern = "%" + escapeLike(text) + "%";
-        // lower() on both sides in the database, so both use the same case rules.
-        return (book, cb) ->
-                cb.like(cb.lower(book.get("title")), cb.lower(cb.literal(pattern)), ESCAPE);
+        String pattern = "%" + escapeLike(text.toLowerCase(Locale.ROOT)) + "%";
+        return (book, cb) -> cb.like(cb.lower(book.get("title")), pattern, ESCAPE);
     }
 
     static PredicateSpecification<Book> hasAuthor(Long authorId) {
