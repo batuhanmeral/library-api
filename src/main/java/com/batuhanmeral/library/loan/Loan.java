@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 /**
  * One copy of a book lent to a member. The relationships exist only on this side: neither Book nor
  * User has a list of loans; loans are found with repository queries. There are no setters: a loan
- * is created active and changes only through {@link #markReturned}.
+ * is created active and changes only through {@link #markOverdue} and {@link #markReturned}.
  */
 @Entity
 @Table(name = "loans")
@@ -65,7 +65,19 @@ public class Loan extends BaseEntity {
         this.status = LoanStatus.ACTIVE;
     }
 
-    /** Ends the loan. The caller puts the copy back on the book. */
+    /**
+     * Called by the nightly job for an active loan whose due date has passed. Anything else is a
+     * bug in the caller's query, not a rule a user can break, hence IllegalStateException.
+     */
+    public void markOverdue(LocalDate today) {
+        if (status != LoanStatus.ACTIVE || !dueDate.isBefore(today)) {
+            throw new IllegalStateException(
+                    "Loan " + id + " is " + status + ", due " + dueDate + "; not overdue.");
+        }
+        this.status = LoanStatus.OVERDUE;
+    }
+
+    /** Ends the loan, active or overdue. The caller puts the copy back on the book. */
     public void markReturned(LocalDate returnDate) {
         if (status == LoanStatus.RETURNED) {
             throw new BusinessRuleException(

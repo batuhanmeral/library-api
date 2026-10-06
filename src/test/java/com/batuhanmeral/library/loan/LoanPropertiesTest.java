@@ -22,11 +22,17 @@ class LoanPropertiesTest {
 
     @Test
     void bindsKebabCasePropertiesToTheRecord() {
-        runner.withPropertyValues("library.loan.max-active-loans=5", "library.loan.period-days=21")
+        runner.withPropertyValues(
+                        "library.loan.max-active-loans=5",
+                        "library.loan.period-days=21",
+                        "library.loan.overdue-check.cron=0 30 3 * * *",
+                        "library.loan.overdue-check.batch-size=50")
                 .run(context -> {
                     LoanProperties properties = context.getBean(LoanProperties.class);
                     assertThat(properties.maxActiveLoans()).isEqualTo(5);
                     assertThat(properties.periodDays()).isEqualTo(21);
+                    assertThat(properties.overdueCheck().cron()).isEqualTo("0 30 3 * * *");
+                    assertThat(properties.overdueCheck().batchSize()).isEqualTo(50);
                 });
     }
 
@@ -39,6 +45,12 @@ class LoanPropertiesTest {
                             .rootCause()
                             .hasMessageContaining("library.loan");
                 });
+        runner.withPropertyValues(
+                        "library.loan.max-active-loans=3",
+                        "library.loan.period-days=14",
+                        "library.loan.overdue-check.cron=0 0 2 * * *",
+                        "library.loan.overdue-check.batch-size=0")
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @Configuration(proxyBeanMethods = false)

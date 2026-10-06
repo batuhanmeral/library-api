@@ -26,12 +26,40 @@ spring:
       pageable:
         # ?size=500 is served as a page of 100. The default size is 20.
         max-page-size: 100
+  task:
+    # The executor behind @Async (POST /admin/jobs/overdue-check). Two threads,
+    # up to four when ten tasks are already waiting; more are refused.
+    execution:
+      thread-name-prefix: library-task-
+      pool:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 10
+      shutdown:
+        # On shutdown, let a running job finish (at most 30 seconds).
+        await-termination: true
+        await-termination-period: 30s
+    # The thread that runs @Scheduled methods.
+    scheduling:
+      thread-name-prefix: library-scheduling-
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
 
 # The library's own settings, bound to LibraryProperties and LoanProperties.
 library:
   # "Today" for loans and the time of the nightly job. The machine's time zone
   # does not matter.
   time-zone: Europe/Istanbul
+  scheduling:
+    # Scheduled jobs run by themselves. The tests turn this off.
+    enabled: true
   loan:
     max-active-loans: 3
     period-days: 14
+    overdue-check:
+      # second minute hour day-of-month month day-of-week: every day at 02:00,
+      # in library.time-zone.
+      cron: "0 0 2 * * *"
+      # Members per transaction.
+      batch-size: 100

@@ -25,6 +25,7 @@ Work in progress. Available now, under `/api/v1`:
 | Authors | `GET /authors`, `GET /authors/{id}`, `GET /authors/{id}/books`, `POST /authors`, `PUT /authors/{id}`, `DELETE /authors/{id}` |
 | Books | `GET /books`, `GET /books/{id}`, `POST /books`, `PUT /books/{id}`, `PATCH /books/{id}`, `DELETE /books/{id}` |
 | Loans | `POST /loans`, `POST /loans/{id}/return`, `GET /loans/{id}`, `GET /loans` |
+| Jobs | `POST /admin/jobs/overdue-check` |
 
 - Category names are unique, up to 100 characters; descriptions are up to 500 characters.
 - A book has a title, an optional unique ISBN (10 or 13 digits), one author and any number of categories, sent as `authorId` and `categoryIds`. All copies of a new book are available; changing `totalCopies` changes `availableCopies` by the same amount.
@@ -62,23 +63,39 @@ The category list is not paged.
 
 Borrow a copy with `POST /loans` and `{"bookId": 1, "memberId": 1}`; the loan is due 14 days later. Return it with `POST /loans/{id}/return`. `GET /loans` is paged (newest first) and takes optional `status` (`ACTIVE`, `OVERDUE`, `RETURNED`) and `memberId` filters; it can be sorted by `id`, `loanDate`, `dueDate`, `returnDate` and `createdAt`.
 
-- A book with no available copy cannot be borrowed. If two members try to take the last copy at the same moment, one of them gets `CONCURRENT_UPDATE`.
+- Only members can borrow; an administrator cannot.
+- A book with no available copy cannot be borrowed. When several members borrow the same book at the same moment, the requests are retried as needed: each gets a copy while copies last, the others get `BOOK_NOT_AVAILABLE`.
+- A member cannot borrow a second copy of a book they already have on loan.
 - A member can have at most 3 open (active or overdue) loans.
 - A member with a loan past its due date cannot borrow until it is returned.
 - `totalCopies` of a book cannot be set below the number of copies on loan.
 
-There are no user accounts yet: the member is sent in the request. With the `dev` profile, a demo member (`member@example.com`) is created at startup; on a new database its id is 1.
+There are no user accounts yet: the member is sent in the request. With the `dev` profile, a demo member (`member@example.com`, phone `+1 555 555 0100`, a number reserved for fiction) is created at startup; on a new database its id is 1.
 
-The limit and the loan period are settings:
+### Notifications and the nightly overdue check
+
+- After a loan or a return is saved, the member gets a confirmation email.
+- Every night at 02:00 (Europe/Istanbul), active loans past their due date are marked `OVERDUE` and each member concerned gets one SMS reminder, if they have a phone number. Running the check again changes nothing.
+- `POST /admin/jobs/overdue-check` starts the same check at once and returns `202 Accepted` without waiting for it; while a run is going, another start gets `409 JOB_ALREADY_RUNNING`. Until sign-in exists, anyone can call it: do not expose the application publicly yet.
+
+Emails and SMS are not really sent; they are written to the application log, with the address shortened to its first letter and domain (`m***@example.com`) and the phone number to its last two digits (`***00`).
+
+### Settings
 
 ```yaml
 library:
+  time-zone: Europe/Istanbul      # "today" for loans and the time of the nightly check
+  scheduling:
+    enabled: true                 # false: the nightly check does not run by itself
   loan:
     max-active-loans: 3
     period-days: 14
+    overdue-check:
+      cron: "0 0 2 * * *"         # second minute hour day month weekday
+      batch-size: 100             # members handled per database transaction
 ```
 
-They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or below 1.
+They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or invalid (a limit below 1, an unknown time zone).
 
 Data is stored in PostgreSQL.
 
@@ -107,12 +124,15 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `DUPLICATE_RESOURCE` | 409 | The name or ISBN is already taken |
 | `RESOURCE_IN_USE` | 409 | The author has books, books use the category, or the book has loans |
 | `DATA_CONFLICT` | 409 | The change conflicts with existing data |
-| `CONCURRENT_UPDATE` | 409 | Another request changed the same data at the same time; reload and try again |
+| `CONCURRENT_UPDATE` | 409 | Another request changed the same data at the same time, even after retries; reload and try again |
 | `BOOK_NOT_AVAILABLE` | 409 | The book has no copy left to borrow |
 | `COPIES_ON_LOAN` | 409 | `totalCopies` would be lower than the copies on loan |
 | `LOAN_ALREADY_RETURNED` | 409 | The loan was already returned |
+| `BOOK_ALREADY_BORROWED` | 409 | The member already has this book on loan |
+| `JOB_ALREADY_RUNNING` | 409 | The overdue check is already running |
 | `LOAN_LIMIT_REACHED` | 422 | The member already has the most open loans allowed |
 | `MEMBER_HAS_OVERDUE_LOAN` | 422 | The member has a loan past its due date |
+| `NOT_A_MEMBER` | 422 | The borrower is not a member (for example an administrator) |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
 | `REQUEST_REJECTED` | 4xx | Any other client error |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -153,7 +173,7 @@ curl http://localhost:8080/api/v1/categories
 
 To look at the database: `docker compose exec postgres psql -U library library`.
 
-A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment).
+A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment); the "Admin jobs" folder starts the overdue check. Watch the application log for the emails and SMS.
 
 ## Test
 

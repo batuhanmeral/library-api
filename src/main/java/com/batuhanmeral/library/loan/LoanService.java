@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class LoanService {
     private final LoanMapper loanMapper;
     private final LoanProperties loanProperties;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     /**
      * Lends one copy of a book. Two kinds of races are possible, and each has its own guard:
@@ -91,8 +93,13 @@ public class LoanService {
         }
         book.borrowCopy();
 
-        Loan loan = new Loan(book, member, today, loanProperties.periodDays());
-        return loanMapper.toResponse(loanRepository.save(loan));
+        Loan loan = loanRepository.save(new Loan(book, member, today, loanProperties.periodDays()));
+        // Listeners decide when to act: the confirmation email waits for the commit, so a borrow
+        // that is rolled back (or loses a race and is retried) announces nothing.
+        events.publishEvent(
+                new LoanBorrowedEvent(
+                        loan.getId(), member.getEmail(), book.getTitle(), loan.getDueDate()));
+        return loanMapper.toResponse(loan);
     }
 
     @Transactional
@@ -103,6 +110,12 @@ public class LoanService {
         // Write now: the response shows the new updatedAt, and a conflicting change of the book
         // fails here, inside this method.
         loanRepository.flush();
+        events.publishEvent(
+                new LoanReturnedEvent(
+                        loan.getId(),
+                        loan.getMember().getEmail(),
+                        loan.getBook().getTitle(),
+                        loan.getReturnDate()));
         return loanMapper.toResponse(loan);
     }
 

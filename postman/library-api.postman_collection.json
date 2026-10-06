@@ -906,11 +906,12 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": {{memberId}}\n}"
-            }
+            },
+            "description": "After the commit, the application log shows the confirmation email with a masked address:\n\n`Email to m***@example.com: You borrowed \"Dune\" (loan 1). Please return it by ...`"
           }
         },
         {
-          "name": "Borrow the same book again (409, no copy left)",
+          "name": "Borrow the same book again (409, already on loan)",
           "event": [
             {
               "listen": "test",
@@ -918,7 +919,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
-                  "pm.test(\"Error code is BOOK_NOT_AVAILABLE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"BOOK_NOT_AVAILABLE\"));"
+                  "pm.test(\"Error code is BOOK_ALREADY_BORROWED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"BOOK_ALREADY_BORROWED\"));"
                 ]
               }
             }
@@ -935,7 +936,8 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": {{memberId}}\n}"
-            }
+            },
+            "description": "The member already has this book. Another member would get BOOK_NOT_AVAILABLE: the only copy is out."
           }
         },
         {
@@ -1071,7 +1073,8 @@
           ],
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/loans/{{loanId}}/return"
+            "url": "{{baseUrl}}/loans/{{loanId}}/return",
+            "description": "The application log shows the return confirmation: `Email to m***@example.com: You returned \"Dune\" ...`"
           }
         },
         {
@@ -1111,6 +1114,74 @@
             "method": "DELETE",
             "url": "{{baseUrl}}/books/{{loanBookId}}"
           }
+        }
+      ]
+    },
+    {
+      "name": "Admin jobs",
+      "description": "Starts the nightly overdue check by hand. Open to everyone until sign-in exists; then administrators only.",
+      "item": [
+        {
+          "name": "Start the overdue check (202)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202 Accepted\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/jobs/overdue-check",
+            "description": "The job runs in the background; the response does not wait for it. The application log then shows `Overdue check for <date>: N loans marked overdue, M reminders sent` and one `SMS to ***00: ...` line per member with a phone."
+          }
+        },
+        {
+          "name": "Start it again while it runs (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The check of a small database ends in milliseconds, so this usually starts a new run (202).",
+                  "// It is 409 only while the previous run is still going.",
+                  "pm.test(\"Status is 202 or 409\", () => pm.expect(pm.response.code).to.be.oneOf([202, 409]));",
+                  "if (pm.response.code === 409) {",
+                  "    pm.test(\"Error code is JOB_ALREADY_RUNNING\", () => pm.expect(pm.response.json().errorCode).to.eql(\"JOB_ALREADY_RUNNING\"));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/jobs/overdue-check",
+            "description": "Send it while a run is still going (for example right after the first request on a database with many overdue loans) to get 409 JOB_ALREADY_RUNNING."
+          },
+          "response": [
+            {
+              "name": "Already running (409)",
+              "originalRequest": {
+                "method": "POST",
+                "url": "{{baseUrl}}/admin/jobs/overdue-check"
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
+              "body": "{\n  \"detail\": \"The overdue check is already running.\",\n  \"instance\": \"/api/v1/admin/jobs/overdue-check\",\n  \"status\": 409,\n  \"title\": \"Conflict\",\n  \"errorCode\": \"JOB_ALREADY_RUNNING\"\n}"
+            }
+          ]
         }
       ]
     }

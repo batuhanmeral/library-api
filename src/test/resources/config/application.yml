@@ -1,0 +1,8 @@
+# Test settings, layered over src/main/resources/application.yml: Spring Boot
+# reads both, and classpath:/config/ wins over classpath:/. Only the tests have
+# this file on their classpath.
+library:
+  scheduling:
+    # Scheduled jobs do not start by themselves in tests; a test runs the job
+    # when it needs it.
+    enabled: false

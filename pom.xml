@@ -72,6 +72,13 @@
 			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Waits in tests until work started in the background (@Async) is done. Version from
+		     Spring Boot. -->
+		<dependency>
+			<groupId>org.awaitility</groupId>
+			<artifactId>awaitility</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!-- In-memory database for the tests; the application itself runs on PostgreSQL. -->
 		<dependency>
 			<groupId>com.h2database</groupId>

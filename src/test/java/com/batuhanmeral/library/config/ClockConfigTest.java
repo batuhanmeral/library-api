@@ -22,7 +22,7 @@ class ClockConfigTest {
 
     @Test
     void theClockUsesTheConfiguredTimeZone() {
-        runner.withPropertyValues("library.time-zone=Asia/Tokyo")
+        runner.withPropertyValues("library.time-zone=Asia/Tokyo", "library.scheduling.enabled=true")
                 .run(context ->
                         assertThat(context.getBean(Clock.class).getZone())
                                 .isEqualTo(ZoneId.of("Asia/Tokyo")));
@@ -31,7 +31,8 @@ class ClockConfigTest {
     @Test
     void theApplicationDoesNotStartWithoutAValidTimeZone() {
         runner.run(context -> assertThat(context).hasFailed());
-        runner.withPropertyValues("library.time-zone=Mars/Olympus")
+        runner.withPropertyValues(
+                        "library.time-zone=Mars/Olympus", "library.scheduling.enabled=true")
                 .run(context -> assertThat(context).hasFailed());
     }
 

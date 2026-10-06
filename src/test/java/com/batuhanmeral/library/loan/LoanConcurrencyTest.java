@@ -2,7 +2,10 @@ package com.batuhanmeral.library.loan;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
@@ -10,6 +13,7 @@ import com.batuhanmeral.library.book.Book;
 import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.loan.dto.LoanRequest;
+import com.batuhanmeral.library.notification.EmailNotificationService;
 import com.batuhanmeral.library.user.Role;
 import com.batuhanmeral.library.user.User;
 import com.batuhanmeral.library.user.UserRepository;
@@ -60,6 +64,8 @@ class LoanConcurrencyTest {
     @Autowired private LoanFacade loanFacade;
 
     @MockitoSpyBean private LoanMapper loanMapper;
+
+    @MockitoSpyBean private EmailNotificationService email;
 
     private long bookId;
     private long firstMember;
@@ -161,6 +167,8 @@ class LoanConcurrencyTest {
         // More than one pass through the mapper per member: some borrows lost a race and ran again.
         assertThat(race.attempts()).isGreaterThan(5);
         assertThat(availableCopies(book)).isZero();
+        // Every attempt announced a loan, but only the five committed ones sent an email.
+        verify(email, times(5)).send(any(), anyString());
     }
 
     @Test
@@ -173,6 +181,8 @@ class LoanConcurrencyTest {
         assertThat(race.outcomes())
                 .containsExactlyInAnyOrder("borrowed", "BOOK_NOT_AVAILABLE", "BOOK_NOT_AVAILABLE");
         assertThat(availableCopies(book)).isZero();
+        // Three attempts announced a loan before the race was decided; two were rolled back.
+        verify(email, times(1)).send(any(), anyString());
     }
 
     private record BorrowRace(List<String> outcomes, int attempts) {}
