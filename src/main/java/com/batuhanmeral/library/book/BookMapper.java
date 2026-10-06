@@ -12,8 +12,9 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
 /**
- * The request carries only ids for the author and the categories, and the copy counts follow rules
- * of their own; the service sets those fields, so the mapper leaves them alone.
+ * The request carries only ids for the author and the categories; the service sets those. The copy
+ * counts and the version have no setters (copies follow rules of their own, see Book), so MapStruct
+ * does not see them as targets at all.
  */
 @Mapper(
         componentModel = MappingConstants.ComponentModel.SPRING,
@@ -25,14 +26,10 @@ public interface BookMapper {
 
     @Mapping(target = "author", ignore = true)
     @Mapping(target = "categories", ignore = true)
-    @Mapping(target = "totalCopies", ignore = true)
-    @Mapping(target = "availableCopies", ignore = true)
     Book toEntity(BookRequest request);
 
     @Mapping(target = "author", ignore = true)
     @Mapping(target = "categories", ignore = true)
-    @Mapping(target = "totalCopies", ignore = true)
-    @Mapping(target = "availableCopies", ignore = true)
     void updateEntity(BookRequest request, @MappingTarget Book book);
 
     /**
@@ -42,7 +39,5 @@ public interface BookMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "author", ignore = true)
     @Mapping(target = "categories", ignore = true)
-    @Mapping(target = "totalCopies", ignore = true)
-    @Mapping(target = "availableCopies", ignore = true)
     void patchEntity(BookPatchRequest request, @MappingTarget Book book);
 }

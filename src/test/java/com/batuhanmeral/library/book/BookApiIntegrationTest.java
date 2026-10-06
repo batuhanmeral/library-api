@@ -248,6 +248,21 @@ class BookApiIntegrationTest {
     }
 
     @Test
+    void updateReturns409WhenTheTotalWouldDropBelowTheCopiesOnLoan() {
+        long id = idOf(post(BOOKS, bookJson("The Hobbit", null, 3, authorId)));
+        // Two copies out on loan; the loan endpoints come later in this step.
+        jdbcTemplate.update("update books set available_copies = 1 where id = ?", id);
+
+        MvcTestResult result = put(id, bookJson("The Hobbit", null, 1, authorId));
+
+        assertProblem(result, HttpStatus.CONFLICT, "COPIES_ON_LOAN");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("2 copies of this book are on loan; totalCopies cannot be lower.");
+    }
+
+    @Test
     void updateReturns409WhenAnotherBookHasTheIsbn() {
         createHobbit();
         long id = idOf(post(BOOKS, bookJson("The Silmarillion", null, 1, authorId)));

@@ -6,6 +6,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -47,6 +48,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("Database constraint violated: {}", constraint);
         return problem(
                 ErrorCode.DATA_CONFLICT, "The request conflicts with existing data.", request);
+    }
+
+    /**
+     * Another transaction changed the same row between our read and our write (see Book.version).
+     * The client can reload and try again; nothing of this request was saved.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail handleOptimisticLockingFailure(
+            OptimisticLockingFailureException ex, HttpServletRequest request) {
+        log.info("Optimistic locking conflict: {}", ex.getClass().getSimpleName());
+        return problem(
+                ErrorCode.CONCURRENT_UPDATE,
+                "The resource was changed by another request. Reload it and try again.",
+                request);
     }
 
     @ExceptionHandler(Exception.class)

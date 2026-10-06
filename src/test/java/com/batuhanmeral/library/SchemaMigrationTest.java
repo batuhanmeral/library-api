@@ -35,9 +35,17 @@ class SchemaMigrationTest {
     }
 
     @Test
-    void theFirstMigrationIsApplied() {
+    void allMigrationsAreApplied() {
         assertThat(Arrays.stream(flyway.info().applied()).map(MigrationInfo::getScript))
-                .contains("V1__create_schema.sql");
+                .containsExactly("V1__create_schema.sql", "V2__add_book_version.sql");
+    }
+
+    @Test
+    void booksInsertedWithoutAVersionStartAtVersionZero() {
+        // Rows that existed before V2 get the column default.
+        insertBook(1, 1);
+
+        assertThat(jdbcTemplate.queryForObject("select version from books", Long.class)).isZero();
     }
 
     @Test
