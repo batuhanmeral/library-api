@@ -29,10 +29,11 @@ public class LoanController {
             SortableFields.of("id", "loanDate", "dueDate", "returnDate", "createdAt");
 
     private final LoanService loanService;
+    private final LoanFacade loanFacade;
 
     @PostMapping
     public ResponseEntity<LoanResponse> borrow(@Valid @RequestBody LoanRequest request) {
-        LoanResponse created = loanService.borrow(request);
+        LoanResponse created = loanFacade.borrow(request);
         URI location =
                 ServletUriComponentsBuilder.fromCurrentRequest()
                         .path("/{id}")
@@ -47,7 +48,7 @@ public class LoanController {
      */
     @PostMapping("/{id}/return")
     public LoanResponse returnBook(@PathVariable Long id) {
-        return loanService.returnBook(id);
+        return loanFacade.returnBook(id);
     }
 
     @GetMapping("/{id}")

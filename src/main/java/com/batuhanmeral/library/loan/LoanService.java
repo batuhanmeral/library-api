@@ -8,6 +8,7 @@ import com.batuhanmeral.library.common.error.ResourceNotFoundException;
 import com.batuhanmeral.library.loan.dto.LoanRequest;
 import com.batuhanmeral.library.loan.dto.LoanResponse;
 import com.batuhanmeral.library.loan.dto.LoanSearchCriteria;
+import com.batuhanmeral.library.user.Role;
 import com.batuhanmeral.library.user.User;
 import com.batuhanmeral.library.user.UserRepository;
 import java.time.Clock;
@@ -22,7 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Lending and returning. Each public method is one transaction: everything it changes is saved
- * together or, when it throws a RuntimeException, not at all.
+ * together or, when it throws a RuntimeException, not at all. The controller does not call borrow
+ * and returnBook directly but through LoanFacade, which runs them again when they lose a race.
  */
 @Service
 @RequiredArgsConstructor
@@ -49,7 +51,8 @@ public class LoanService {
      *       both take the last copy.
      *   <li>One member, two books at once: the books differ, so their versions do not conflict. The
      *       member's row is locked instead, so the second request waits until the first has
-     *       committed and then counts its loan.
+     *       committed and then counts its loan. The same lock keeps one member from taking two
+     *       copies of one book with two requests at once.
      * </ul>
      */
     @Transactional
@@ -59,6 +62,10 @@ public class LoanService {
                         .findLockedById(request.memberId())
                         .orElseThrow(
                                 () -> new ResourceNotFoundException("Member", request.memberId()));
+        if (member.getRole() != Role.MEMBER) {
+            throw new BusinessRuleException(
+                    ErrorCode.NOT_A_MEMBER, "Only members can borrow books.");
+        }
         Book book =
                 bookRepository
                         .findById(request.bookId())
@@ -69,6 +76,11 @@ public class LoanService {
             throw new BusinessRuleException(
                     ErrorCode.MEMBER_HAS_OVERDUE_LOAN,
                     "The member has an overdue loan and cannot borrow until it is returned.");
+        }
+        if (loanRepository.existsByMemberIdAndBookIdAndStatusIn(
+                member.getId(), book.getId(), OPEN_STATUSES)) {
+            throw new BusinessRuleException(
+                    ErrorCode.BOOK_ALREADY_BORROWED, "The member already has this book on loan.");
         }
         long openLoans = loanRepository.countByMemberIdAndStatusIn(member.getId(), OPEN_STATUSES);
         if (openLoans >= loanProperties.maxActiveLoans()) {

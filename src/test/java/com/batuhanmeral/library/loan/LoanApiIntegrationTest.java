@@ -8,6 +8,7 @@ import com.batuhanmeral.library.user.User;
 import com.batuhanmeral.library.user.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * There is no endpoint for users yet (step 10), so members are saved with the repository. Loans
- * that should already exist (an overdue one, for example) are saved the same way.
+ * that should already exist (an overdue one, for example) are saved the same way. "Today" is read
+ * from the application's clock: it is in the library's time zone, which may be a day ahead of or
+ * behind the machine's.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -40,6 +43,8 @@ class LoanApiIntegrationTest {
     @Autowired private BookRepository bookRepository;
 
     @Autowired private LoanRepository loanRepository;
+
+    @Autowired private Clock clock;
 
     private long authorId;
     private long memberId;
@@ -69,7 +74,7 @@ class LoanApiIntegrationTest {
         assertThat(result)
                 .headers()
                 .hasValue("Location", "http://localhost" + LOANS + "/" + loanId);
-        LocalDate today = LocalDate.now();
+        LocalDate today = today();
         assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("ACTIVE");
         assertThat(result).bodyJson().extractingPath("$.loanDate").isEqualTo(today.toString());
         assertThat(result)
@@ -127,7 +132,7 @@ class LoanApiIntegrationTest {
     void borrowReturns422WhenTheMemberHasALoanPastItsDueDate() {
         // Borrowed 20 days ago for 14 days. Still ACTIVE: the nightly job that marks it OVERDUE
         // comes in step 7, but the rule already applies.
-        saveLoan(createBook("Dune", 1), LocalDate.now().minusDays(20));
+        saveLoan(createBook("Dune", 1), today().minusDays(20));
 
         MvcTestResult result = borrow(createBook("Dune Messiah", 1), memberId);
 
@@ -141,7 +146,7 @@ class LoanApiIntegrationTest {
 
     @Test
     void borrowReturns422WhenTheMemberHasALoanMarkedOverdue() {
-        long loanId = saveLoan(createBook("Dune", 1), LocalDate.now());
+        long loanId = saveLoan(createBook("Dune", 1), today());
         jdbcTemplate.update("update loans set status = 'OVERDUE' where id = ?", loanId);
 
         assertProblem(
@@ -152,9 +157,46 @@ class LoanApiIntegrationTest {
 
     @Test
     void aLoanDueTodayIsNotOverdue() {
-        saveLoan(createBook("Dune", 1), LocalDate.now().minusDays(14));
+        saveLoan(createBook("Dune", 1), today().minusDays(14));
 
         assertThat(borrow(createBook("Dune Messiah", 1), memberId)).hasStatus(HttpStatus.CREATED);
+    }
+
+    @Test
+    void borrowReturns422WhenTheBorrowerIsNotAMember() {
+        long bookId = createBook("Dune", 1);
+        long adminId =
+                userRepository
+                        .save(new User("admin@example.com", "{noop}x", "Admin", Role.ADMIN))
+                        .getId();
+
+        MvcTestResult result = borrow(bookId, adminId);
+
+        assertProblem(result, HttpStatus.UNPROCESSABLE_CONTENT, "NOT_A_MEMBER");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("Only members can borrow books.");
+        assertThat(availableCopies(bookId)).isEqualTo(1);
+    }
+
+    @Test
+    void aMemberCannotBorrowASecondCopyOfABookTheyHaveOnLoan() {
+        long bookId = createBook("Dune", 3);
+        long loanId = idOf(borrow(bookId, memberId));
+
+        MvcTestResult again = borrow(bookId, memberId);
+
+        assertProblem(again, HttpStatus.CONFLICT, "BOOK_ALREADY_BORROWED");
+        assertThat(again)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("The member already has this book on loan.");
+        assertThat(availableCopies(bookId)).isEqualTo(2);
+
+        // Once the copy is back, the member may borrow the book again.
+        returnLoan(loanId);
+        assertThat(borrow(bookId, memberId)).hasStatus(HttpStatus.CREATED);
     }
 
     @Test
@@ -187,10 +229,7 @@ class LoanApiIntegrationTest {
 
         assertThat(result).hasStatus(HttpStatus.OK);
         assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("RETURNED");
-        assertThat(result)
-                .bodyJson()
-                .extractingPath("$.returnDate")
-                .isEqualTo(LocalDate.now().toString());
+        assertThat(result).bodyJson().extractingPath("$.returnDate").isEqualTo(today().toString());
         assertThat(availableCopies(bookId)).isEqualTo(1);
     }
 
@@ -300,6 +339,10 @@ class LoanApiIntegrationTest {
                         .exchange();
 
         assertProblem(result, HttpStatus.CONFLICT, "COPIES_ON_LOAN");
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(clock);
     }
 
     private long saveMember(String email) {

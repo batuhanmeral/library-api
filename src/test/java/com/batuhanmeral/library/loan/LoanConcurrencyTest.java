@@ -1,6 +1,8 @@
 package com.batuhanmeral.library.loan;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
@@ -11,6 +13,7 @@ import com.batuhanmeral.library.loan.dto.LoanRequest;
 import com.batuhanmeral.library.user.Role;
 import com.batuhanmeral.library.user.User;
 import com.batuhanmeral.library.user.UserRepository;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -19,21 +22,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Two members borrow the last copy of a book at the same moment. Both requests must read the book
- * before either commits, or the second one simply sees no copy left. Each borrow therefore runs
- * inside an outer transaction (LoanService.borrow joins it, propagation REQUIRED) that waits at a
- * barrier until both have read and changed the book, and only then commits.
+ * Members borrow the same book at the same moment. All requests must read the book before any of
+ * them commits, or the later ones simply see the earlier loans. The first two tests call
+ * LoanService inside an outer transaction (LoanService.borrow joins it, propagation REQUIRED) that
+ * waits at a barrier. The tests of LoanFacade cannot wrap it in a transaction (each retry needs a
+ * new one), so the barrier sits in LoanMapper.toResponse, which LoanService calls inside its
+ * transaction after it has read and changed the book and before it commits.
  */
 @SpringBootTest
 class LoanConcurrencyTest {
@@ -49,6 +56,10 @@ class LoanConcurrencyTest {
     @Autowired private JdbcTemplate jdbcTemplate;
 
     @Autowired private PlatformTransactionManager transactionManager;
+
+    @Autowired private LoanFacade loanFacade;
+
+    @MockitoSpyBean private LoanMapper loanMapper;
 
     private long bookId;
     private long firstMember;
@@ -139,8 +150,95 @@ class LoanConcurrencyTest {
         assertThat(JdbcTestUtils.countRowsInTable(jdbcTemplate, "loans")).isEqualTo(3);
     }
 
+    @Test
+    void withRetriesFiveConcurrentBorrowsOfFiveCopiesAllSucceed() throws Exception {
+        long book = saveBook("Dune Messiah", 5);
+        List<Long> members = saveMembers(5);
+
+        BorrowRace race = borrowAtOnce(book, members);
+
+        assertThat(race.outcomes()).hasSize(5).containsOnly("borrowed");
+        // More than one pass through the mapper per member: some borrows lost a race and ran again.
+        assertThat(race.attempts()).isGreaterThan(5);
+        assertThat(availableCopies(book)).isZero();
+    }
+
+    @Test
+    void withRetriesTheLosersOfTheLastCopyGetBookNotAvailable() throws Exception {
+        long book = saveBook("Dune Messiah", 1);
+        List<Long> members = saveMembers(3);
+
+        BorrowRace race = borrowAtOnce(book, members);
+
+        assertThat(race.outcomes())
+                .containsExactlyInAnyOrder("borrowed", "BOOK_NOT_AVAILABLE", "BOOK_NOT_AVAILABLE");
+        assertThat(availableCopies(book)).isZero();
+    }
+
+    private record BorrowRace(List<String> outcomes, int attempts) {}
+
+    /**
+     * Every member borrows the book through LoanFacade at the same time. The first attempt of each
+     * waits in the mapper until all have read the book, so all but one lose the race at commit.
+     */
+    private BorrowRace borrowAtOnce(long bookId, List<Long> memberIds) throws Exception {
+        int count = memberIds.size();
+        CyclicBarrier allHaveRead = new CyclicBarrier(count);
+        AtomicInteger mapperCalls = new AtomicInteger();
+        doAnswer(
+                        invocation -> {
+                            if (mapperCalls.getAndIncrement() < count) {
+                                await(allHaveRead);
+                            }
+                            return invocation.callRealMethod();
+                        })
+                .when(loanMapper)
+                .toResponse(any());
+        ExecutorService executor = Executors.newFixedThreadPool(count);
+        try {
+            List<Future<String>> futures = new ArrayList<>();
+            for (long memberId : memberIds) {
+                futures.add(
+                        executor.submit(() -> {
+                            try {
+                                loanFacade.borrow(new LoanRequest(bookId, memberId));
+                                return "borrowed";
+                            } catch (BusinessRuleException e) {
+                                return e.getErrorCode().name();
+                            } catch (OptimisticLockingFailureException e) {
+                                return "OptimisticLockingFailureException";
+                            }
+                        }));
+            }
+            List<String> outcomes = new ArrayList<>();
+            for (Future<String> future : futures) {
+                outcomes.add(future.get(30, TimeUnit.SECONDS));
+            }
+            return new BorrowRace(outcomes, mapperCalls.get());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private List<Long> saveMembers(int count) {
+        List<Long> ids = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            ids.add(saveMember("reader" + i + "@example.com"));
+        }
+        return ids;
+    }
+
+    private int availableCopies(long bookId) {
+        return jdbcTemplate.queryForObject(
+                "select available_copies from books where id = ?", Integer.class, bookId);
+    }
+
     private long saveBook(String title) {
-        Book book = new Book(title, 1);
+        return saveBook(title, 1);
+    }
+
+    private long saveBook(String title, int copies) {
+        Book book = new Book(title, copies);
         book.setAuthor(authorRepository.findAll().getFirst());
         return bookRepository.save(book).getId();
     }

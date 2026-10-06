@@ -1,0 +1,42 @@
+package com.batuhanmeral.library.config;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Clock;
+import java.time.ZoneId;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+
+/** The application's clock runs in library.time-zone, whatever the machine's time zone is. */
+class ClockConfigTest {
+
+    private final ApplicationContextRunner runner =
+            new ApplicationContextRunner()
+                    .withConfiguration(AutoConfigurations.of(ValidationAutoConfiguration.class))
+                    .withUserConfiguration(Config.class);
+
+    @Test
+    void theClockUsesTheConfiguredTimeZone() {
+        runner.withPropertyValues("library.time-zone=Asia/Tokyo")
+                .run(context ->
+                        assertThat(context.getBean(Clock.class).getZone())
+                                .isEqualTo(ZoneId.of("Asia/Tokyo")));
+    }
+
+    @Test
+    void theApplicationDoesNotStartWithoutAValidTimeZone() {
+        runner.run(context -> assertThat(context).hasFailed());
+        runner.withPropertyValues("library.time-zone=Mars/Olympus")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableConfigurationProperties(LibraryProperties.class)
+    @Import(ClockConfig.class)
+    static class Config {}
+}

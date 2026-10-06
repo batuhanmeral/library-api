@@ -24,6 +24,9 @@ public interface LoanRepository extends JpaRepository<Loan, Long>, JpaSpecificat
 
     long countByMemberIdAndStatusIn(Long memberId, Collection<LoanStatus> statuses);
 
+    boolean existsByMemberIdAndBookIdAndStatusIn(
+            Long memberId, Long bookId, Collection<LoanStatus> statuses);
+
     /**
      * Whether the member has a loan past its due date: one the nightly job already marked OVERDUE
      * (step 7), or one still ACTIVE whose due date has passed since the job last ran. A derived
