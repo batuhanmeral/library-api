@@ -2,6 +2,7 @@ package com.batuhanmeral.library.book;
 
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
+import com.batuhanmeral.library.book.dto.BookPatchRequest;
 import com.batuhanmeral.library.book.dto.BookRequest;
 import com.batuhanmeral.library.book.dto.BookResponse;
 import com.batuhanmeral.library.book.dto.BookSearchCriteria;
@@ -74,6 +75,27 @@ public class BookService {
         }
         bookMapper.updateEntity(request, book);
         applyRelationsAndCopies(request, book);
+        bookRepository.flush();
+        return bookMapper.toResponse(book);
+    }
+
+    /** Changes only the fields that were sent; see {@link BookPatchRequest}. */
+    @Transactional
+    public BookResponse patch(Long id, BookPatchRequest request) {
+        Book book = getBook(id);
+        if (request.isbn() != null && bookRepository.existsByIsbnAndIdNot(request.isbn(), id)) {
+            throw isbnTaken(request.isbn());
+        }
+        bookMapper.patchEntity(request, book);
+        if (request.authorId() != null) {
+            book.setAuthor(getAuthor(request.authorId()));
+        }
+        if (request.categoryIds() != null) {
+            book.replaceCategories(getCategories(request.categoryIds()));
+        }
+        if (request.totalCopies() != null) {
+            book.changeTotalCopies(request.totalCopies());
+        }
         bookRepository.flush();
         return bookMapper.toResponse(book);
     }

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -350,6 +352,109 @@ class BookApiIntegrationTest {
     }
 
     @Test
+    void patchChangesOnlyTheFieldsThatAreSent() {
+        long id = idOf(createHobbit());
+
+        MvcTestResult result = patch(id, "{\"pageCount\": 320, \"publishedYear\": 1937}");
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().extractingPath("$.pageCount").isEqualTo(320);
+        assertThat(result).bodyJson().extractingPath("$.publishedYear").isEqualTo(1937);
+        // Not sent, so not changed. PUT would have cleared the ISBN and the categories.
+        assertThat(result).bodyJson().extractingPath("$.title").isEqualTo("The Hobbit");
+        assertThat(result).bodyJson().extractingPath("$.isbn").isEqualTo("9780547928227");
+        assertThat(result).bodyJson().extractingPath("$.totalCopies").isEqualTo(1);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.categories[*].name")
+                .asArray()
+                .containsExactly("Fantasy");
+    }
+
+    @Test
+    void patchTreatsNullAsNotSent() {
+        long id = idOf(createHobbit());
+
+        MvcTestResult result = patch(id, "{\"isbn\": null, \"title\": null}");
+
+        // A field cannot be cleared with PATCH: null and a missing field mean the same here.
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().extractingPath("$.isbn").isEqualTo("9780547928227");
+        assertThat(result).bodyJson().extractingPath("$.title").isEqualTo("The Hobbit");
+    }
+
+    @Test
+    void patchChangesTheAuthorTheCategoriesAndTheCopiesWhenSent() {
+        long id = idOf(createHobbit());
+        long otherAuthor = idOf(post("/api/v1/authors", "{\"name\": \"Christopher Tolkien\"}"));
+
+        MvcTestResult result =
+                patch(
+                        id,
+                        "{\"authorId\": %d, \"categoryIds\": [], \"totalCopies\": 4}"
+                                .formatted(otherAuthor));
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.author.name")
+                .isEqualTo("Christopher Tolkien");
+        // An empty list is a value: it removes every category.
+        assertThat(result).bodyJson().extractingPath("$.categories").asArray().isEmpty();
+        assertThat(result).bodyJson().extractingPath("$.totalCopies").isEqualTo(4);
+        assertThat(result).bodyJson().extractingPath("$.availableCopies").isEqualTo(4);
+    }
+
+    @Test
+    void patchValidatesTheFieldsThatAreSent() {
+        long id = idOf(createHobbit());
+
+        MvcTestResult result =
+                patch(id, "{\"title\": \" \", \"totalCopies\": -1, \"isbn\": \"12\"}");
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.errors[*].field")
+                .asArray()
+                .containsExactlyInAnyOrder("title", "totalCopies", "isbn");
+    }
+
+    @Test
+    void patchReturns404ForAnUnknownBookAnd409ForATakenIsbn() {
+        createHobbit();
+        long id = idOf(post(BOOKS, bookJson("The Silmarillion", null, 1, authorId)));
+
+        assertProblem(
+                patch(9999, "{\"pageCount\": 1}"), HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
+        assertProblem(
+                patch(id, "{\"isbn\": \"9780547928227\"}"),
+                HttpStatus.CONFLICT,
+                "DUPLICATE_RESOURCE");
+    }
+
+    @Test
+    void createReturns400ForMoreThan20Categories() {
+        String ids =
+                LongStream.rangeClosed(1, 21)
+                        .mapToObj(Long::toString)
+                        .collect(Collectors.joining(","));
+
+        MvcTestResult result =
+                post(
+                        BOOKS,
+                        "{\"title\": \"T\", \"totalCopies\": 1, \"authorId\": %d, \"categoryIds\": [%s]}"
+                                .formatted(authorId, ids));
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.errors[*].field")
+                .asArray()
+                .containsExactly("categoryIds");
+    }
+
+    @Test
     void deleteReturns204AndRemovesTheBook() {
         long id = idOf(createHobbit());
 
@@ -411,6 +516,14 @@ class BookApiIntegrationTest {
 
     private MvcTestResult post(String uri, String json) {
         return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+    }
+
+    private MvcTestResult patch(long id, String json) {
+        return mvc.patch()
+                .uri(BOOKS + "/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .exchange();
     }
 
     private MvcTestResult put(long id, String json) {

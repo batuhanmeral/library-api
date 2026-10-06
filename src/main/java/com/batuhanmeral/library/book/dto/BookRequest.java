@@ -15,7 +15,7 @@ import java.util.Set;
  * entities. The available copies are not sent: the service derives them from the total.
  *
  * @param isbn ISBN-10 or ISBN-13, digits only (an ISBN-10 may end with X)
- * @param categoryIds may be omitted or empty
+ * @param categoryIds may be omitted or empty; at most {@value #MAX_CATEGORIES}
  */
 public record BookRequest(
         @Pattern(regexp = "\\d{9}[\\dX]|\\d{13}", message = "must be 10 or 13 digits") String isbn,
@@ -25,4 +25,8 @@ public record BookRequest(
         @Positive Integer pageCount,
         @NotNull @PositiveOrZero Integer totalCopies,
         @NotNull Long authorId,
-        Set<@NotNull Long> categoryIds) {}
+        @Size(max = MAX_CATEGORIES) Set<@NotNull Long> categoryIds) {
+
+    /** Keeps one request from making the service load and link an unbounded number of rows. */
+    public static final int MAX_CATEGORIES = 20;
+}

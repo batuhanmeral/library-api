@@ -23,12 +23,39 @@ Work in progress. Available now, under `/api/v1`:
 |---|---|
 | Categories | `GET /categories`, `GET /categories/{id}`, `POST /categories`, `PUT /categories/{id}`, `DELETE /categories/{id}` |
 | Authors | `GET /authors`, `GET /authors/{id}`, `GET /authors/{id}/books`, `POST /authors`, `PUT /authors/{id}`, `DELETE /authors/{id}` |
-| Books | `GET /books`, `GET /books/{id}`, `POST /books`, `PUT /books/{id}`, `DELETE /books/{id}` |
+| Books | `GET /books`, `GET /books/{id}`, `POST /books`, `PUT /books/{id}`, `PATCH /books/{id}`, `DELETE /books/{id}` |
 
 - Category names are unique, up to 100 characters; descriptions are up to 500 characters.
 - A book has a title, an optional unique ISBN (10 or 13 digits), one author and any number of categories, sent as `authorId` and `categoryIds`. All copies of a new book are available; changing `totalCopies` changes `availableCopies` by the same amount.
+- `PUT /books/{id}` replaces the whole book; `PATCH /books/{id}` changes only the fields that are sent. A field cannot be cleared with `PATCH` (a `null` value is treated as not sent). A book can have at most 20 categories.
 - An author who has books, or a category that books use, cannot be deleted.
 - Every response has `createdAt` and `updatedAt` timestamps.
+
+### Paging, sorting and search
+
+`GET /authors`, `GET /books` and `GET /authors/{id}/books` return one page:
+
+```json
+{ "content": [ ... ], "page": 0, "size": 20, "totalElements": 42, "totalPages": 3 }
+```
+
+- `page` starts at 0; `size` defaults to 20 and is capped at 100.
+- `sort=field` or `sort=field,desc`, repeatable. Books can be sorted by `id`, `title`, `publishedYear`, `availableCopies` and `createdAt` (default `title`); authors by `id`, `name`, `birthDate` and `createdAt` (default `name`).
+- `GET /books` filters, all optional and combined with AND:
+
+| Parameter | Matches books |
+|---|---|
+| `title` | whose title contains the text, ignoring case |
+| `authorId` | by that author |
+| `categoryId` | in that category |
+| `available` | `true`: with at least one copy available; `false`: with none |
+| `yearFrom`, `yearTo` | published in that range, inclusive |
+
+```bash
+curl 'http://localhost:8080/api/v1/books?title=hobbit&available=true&sort=publishedYear,desc&size=10'
+```
+
+The category list is not paged.
 
 Data is stored in PostgreSQL.
 
@@ -49,8 +76,9 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 
 | errorCode | Status | When |
 |---|---|---|
-| `VALIDATION_FAILED` | 400 | A field is missing or invalid; `errors` lists each field |
+| `VALIDATION_FAILED` | 400 | A body field or a search filter is missing or invalid; `errors` lists each field |
 | `MALFORMED_REQUEST` | 400 | The body is not valid JSON or a path value has the wrong type |
+| `INVALID_PARAMETER` | 400 | A query parameter cannot be used: a sort field that is not allowed, or `yearFrom` after `yearTo` |
 | `RESOURCE_NOT_FOUND` | 404 | No resource with that id (also an `authorId` or `categoryIds` entry in a book), or no such path |
 | `METHOD_NOT_ALLOWED` | 405 | The path does not support the HTTP method |
 | `DUPLICATE_RESOURCE` | 409 | The name or ISBN is already taken |

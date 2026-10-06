@@ -268,14 +268,18 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Body is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                  "pm.test(\"Body is a page\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.content).to.be.an(\"array\");",
+                  "    pm.expect(body).to.include.keys(\"page\", \"size\", \"totalElements\", \"totalPages\");",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/authors"
+            "url": "{{baseUrl}}/authors?page=0&size=20&sort=name,asc"
           }
         },
         {
@@ -508,14 +512,76 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Body is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                  "pm.test(\"Body is a page sorted by title\", () => {",
+                  "    const titles = pm.response.json().content.map(b => b.title);",
+                  "    pm.expect(titles).to.eql([...titles].sort());",
+                  "});"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/books"
+            "url": "{{baseUrl}}/books?page=0&size=20&sort=title,asc"
+          }
+        },
+        {
+          "name": "Search books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Finds the new book\", () => {",
+                  "    pm.expect(pm.response.json().content.map(b => b.id)).to.include(Number(pm.collectionVariables.get(\"bookId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books?title=hob&categoryId={{bookCategoryId}}&available=true&yearFrom=1900&yearTo=1950"
+          }
+        },
+        {
+          "name": "Search books with a year range that ends before it starts (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is INVALID_PARAMETER\", () => pm.expect(pm.response.json().errorCode).to.eql(\"INVALID_PARAMETER\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books?yearFrom=2000&yearTo=1990"
+          }
+        },
+        {
+          "name": "Sort books by a field that is not allowed (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is INVALID_PARAMETER\", () => pm.expect(pm.response.json().errorCode).to.eql(\"INVALID_PARAMETER\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/books?sort=author.biography"
           }
         },
         {
@@ -547,7 +613,7 @@
                 "exec": [
                   "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Contains the new book\", () => {",
-                  "    pm.expect(pm.response.json().map(b => b.id)).to.include(Number(pm.collectionVariables.get(\"bookId\")));",
+                  "    pm.expect(pm.response.json().content.map(b => b.id)).to.include(Number(pm.collectionVariables.get(\"bookId\")));",
                   "});"
                 ]
               }
@@ -587,6 +653,40 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isbn\": \"9780547928227\",\n  \"title\": \"The Hobbit\",\n  \"description\": \"There and back again\",\n  \"publishedYear\": 1937,\n  \"pageCount\": 310,\n  \"totalCopies\": 5,\n  \"authorId\": {{authorId}},\n  \"categoryIds\": [{{bookCategoryId}}]\n}"
+            }
+          }
+        },
+        {
+          "name": "Patch book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Only the sent field changed\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.pageCount).to.eql(320);",
+                  "    pm.expect(body.title).to.eql(\"The Hobbit\");",
+                  "    pm.expect(body.isbn).to.eql(\"9780547928227\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/books/{{bookId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageCount\": 320\n}"
             }
           }
         },

@@ -1,5 +1,6 @@
 package com.batuhanmeral.library.book;
 
+import com.batuhanmeral.library.book.dto.BookPatchRequest;
 import com.batuhanmeral.library.book.dto.BookRequest;
 import com.batuhanmeral.library.book.dto.BookResponse;
 import com.batuhanmeral.library.book.dto.BookSearchCriteria;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -64,6 +66,11 @@ public class BookController {
     @PutMapping("/{id}")
     public BookResponse update(@PathVariable Long id, @Valid @RequestBody BookRequest request) {
         return bookService.update(id, request);
+    }
+
+    @PatchMapping("/{id}")
+    public BookResponse patch(@PathVariable Long id, @Valid @RequestBody BookPatchRequest request) {
+        return bookService.patch(id, request);
     }
 
     @DeleteMapping("/{id}")
