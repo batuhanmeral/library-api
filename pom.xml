@@ -41,6 +41,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
+		<!-- RestClient.Builder and HTTP client settings for calling Open Library. In Spring Boot 4
+		     the client side is a module of its own; the web MVC starter does not configure it. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
@@ -72,11 +78,10 @@
 			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- Waits in tests until work started in the background (@Async) is done. Version from
-		     Spring Boot. -->
+		<!-- @RestClientTest and MockRestServiceServer: client tests without a real server. -->
 		<dependency>
-			<groupId>org.awaitility</groupId>
-			<artifactId>awaitility</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<!-- In-memory database for the tests; the application itself runs on PostgreSQL. -->

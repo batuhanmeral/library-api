@@ -63,3 +63,14 @@ library:
       cron: "0 0 2 * * *"
       # Members per transaction.
       batch-size: 100
+  # Open Library (https://openlibrary.org), asked for the details of a book
+  # that is added with an ISBN. Bound to OpenLibraryProperties.
+  open-library:
+    base-url: https://openlibrary.org
+    # A call must not hold a request thread for long: give up on a server that
+    # does not accept the connection in 2 s or does not answer in 3 s.
+    connect-timeout: 2s
+    read-timeout: 3s
+    # Open Library asks clients to say who they are. A generic name, no
+    # personal contact details.
+    user-agent: "library-api (Spring Boot learning project)"

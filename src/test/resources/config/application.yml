@@ -6,3 +6,7 @@ library:
     # Scheduled jobs do not start by themselves in tests; a test runs the job
     # when it needs it.
     enabled: false
+  # Tests never call the real Open Library. Nothing listens on port 1, so a
+  # call that is not mocked fails at once instead of reaching the internet.
+  open-library:
+    base-url: http://127.0.0.1:1
