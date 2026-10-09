@@ -6,3 +6,11 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
+logging:
+  structured:
+    format:
+      # One JSON object per line (Elastic Common Schema) instead of text: log
+      # tools read the fields directly, the request id is a field of its own,
+      # and a line break in a message is escaped instead of starting a new line.
+      console: ecs

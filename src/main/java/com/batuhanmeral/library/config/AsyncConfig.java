@@ -1,6 +1,9 @@
 package com.batuhanmeral.library.config;
 
+import com.batuhanmeral.library.common.logging.MdcTaskDecorator;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
@@ -10,4 +13,14 @@ import org.springframework.scheduling.annotation.EnableAsync;
  */
 @Configuration(proxyBeanMethods = false)
 @EnableAsync
-public class AsyncConfig {}
+public class AsyncConfig {
+
+    /**
+     * Spring Boot applies this to the executor it configures: tasks keep the request id of the
+     * request that started them.
+     */
+    @Bean
+    TaskDecorator mdcTaskDecorator() {
+        return new MdcTaskDecorator();
+    }
+}

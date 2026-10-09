@@ -12,6 +12,7 @@ import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
 import com.batuhanmeral.library.book.Book;
 import com.batuhanmeral.library.book.BookRepository;
+import com.batuhanmeral.library.common.logging.RequestIdFilter;
 import com.batuhanmeral.library.notification.SmsNotificationService;
 import com.batuhanmeral.library.user.Role;
 import com.batuhanmeral.library.user.User;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -107,6 +109,33 @@ class OverdueCheckApiTest {
         await().atMost(Duration.ofSeconds(10)).until(() -> !job.isRunning());
         // The job ran on a thread of the task executor (spring.task.execution), not this one.
         assertThat(smsThread.get()).startsWith("library-task-");
+    }
+
+    /**
+     * The job runs on another thread; the request id travels with it (MdcTaskDecorator), so its log
+     * lines can be found by the id the response returned.
+     */
+    @Test
+    void theBackgroundJobLogsWithTheRequestIdOfTheRequestThatStartedIt() {
+        AtomicReference<String> requestIdInTheJob = new AtomicReference<>();
+        doAnswer(
+                        invocation -> {
+                            requestIdInTheJob.set(MDC.get(RequestIdFilter.MDC_KEY));
+                            return invocation.callRealMethod();
+                        })
+                .when(sms)
+                .send(any(), anyString());
+
+        MvcTestResult result =
+                mvc.post()
+                        .uri(OVERDUE_CHECK)
+                        .header(RequestIdFilter.HEADER, "overdue-check-1")
+                        .exchange();
+
+        assertThat(result).hasStatus(HttpStatus.ACCEPTED);
+        await().atMost(Duration.ofSeconds(10)).until(() -> requestIdInTheJob.get() != null);
+        await().atMost(Duration.ofSeconds(10)).until(() -> !job.isRunning());
+        assertThat(requestIdInTheJob).hasValue("overdue-check-1");
     }
 
     @Test

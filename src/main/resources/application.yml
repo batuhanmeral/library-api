@@ -46,6 +46,12 @@ spring:
         await-termination: true
         await-termination-period: 30s
 
+logging:
+  pattern:
+    # Printed on every log line before the logger name: the id RequestIdFilter
+    # gives each request (empty for lines no request caused).
+    correlation: "[%X{requestId:-}] "
+
 # The library's own settings, bound to LibraryProperties and LoanProperties.
 library:
   # "Today" for loans and the time of the nightly job. The machine's time zone
