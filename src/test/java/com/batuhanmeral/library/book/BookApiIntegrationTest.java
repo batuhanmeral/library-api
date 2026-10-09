@@ -204,11 +204,13 @@ class BookApiIntegrationTest {
                         "{\"isbn\": \"12-34\", \"title\": \"\", \"totalCopies\": -1, \"pageCount\": 0}");
 
         assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        // No "title": since step 8 a new book given with an ISBN may leave the title out (it comes
+        // from Open Library). PUT still requires it; BookIsbnLookupTest covers both.
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$.errors[*].field")
                 .asArray()
-                .containsExactlyInAnyOrder("isbn", "title", "totalCopies", "pageCount", "authorId");
+                .containsExactlyInAnyOrder("isbn", "totalCopies", "pageCount", "authorId");
     }
 
     @Test

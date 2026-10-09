@@ -23,6 +23,8 @@ class BookControllerTest {
 
     @MockitoBean private BookService bookService;
 
+    @MockitoBean private BookCreationService bookCreationService;
+
     @Test
     void anOptimisticLockFailureReturns409ConcurrentUpdate() {
         when(bookService.update(eq(1L), any()))

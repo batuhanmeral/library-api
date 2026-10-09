@@ -61,6 +61,19 @@ public class BookService {
         return search(BookSearchCriteria.byAuthor(authorId), pageable);
     }
 
+    /**
+     * The cheap checks of {@link #create}, done before a slow call to Open Library: a taken ISBN or
+     * an unknown author fails without it. create checks again; this is not a reservation.
+     */
+    public void checkNewBook(String isbn, Long authorId) {
+        if (isbn != null && bookRepository.existsByIsbn(isbn)) {
+            throw isbnTaken(isbn);
+        }
+        if (!authorRepository.existsById(authorId)) {
+            throw new ResourceNotFoundException("Author", authorId);
+        }
+    }
+
     @Transactional
     public BookResponse create(BookRequest request) {
         if (request.isbn() != null && bookRepository.existsByIsbn(request.isbn())) {

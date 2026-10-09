@@ -29,6 +29,7 @@ Work in progress. Available now, under `/api/v1`:
 
 - Category names are unique, up to 100 characters; descriptions are up to 500 characters.
 - A book has a title, an optional unique ISBN (10 or 13 digits), one author and any number of categories, sent as `authorId` and `categoryIds`. All copies of a new book are available; changing `totalCopies` changes `availableCopies` by the same amount.
+- `POST /books` with an `isbn` fills in a missing title, description, publication year and page count from [Open Library](https://openlibrary.org); see below. The title may then be left out.
 - `PUT /books/{id}` replaces the whole book; `PATCH /books/{id}` changes only the fields that are sent. A field cannot be cleared with `PATCH` (a `null` value is treated as not sent). A book can have at most 20 categories.
 - An author who has books, a category that books use, or a book that has loans cannot be deleted.
 - Every response has `createdAt` and `updatedAt` timestamps.
@@ -58,6 +59,25 @@ curl 'http://localhost:8080/api/v1/books?title=hobbit&available=true&sort=publis
 ```
 
 The category list is not paged.
+
+### Adding a book by ISBN
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/books \
+  -H 'Content-Type: application/json' \
+  -d '{"isbn": "9780441172719", "totalCopies": 2, "authorId": 1}'
+```
+
+The response has the title, year and page count Open Library knows for that edition. The rules:
+
+- Values sent in the request always win; Open Library only fills in what is missing. It is not asked when nothing is missing, when there is no ISBN, or when the ISBN is already taken or the author does not exist.
+- Without an ISBN, the title is required (400).
+- Without a title: an ISBN Open Library does not know is `422 ISBN_NOT_FOUND`; if Open Library cannot be reached or does not answer in time, `503 EXTERNAL_SERVICE_UNAVAILABLE`.
+- With a title, a failed lookup does not stop the book from being saved with the values that were sent; the log shows a warning.
+- Data from Open Library is checked before it is saved: texts are cut to the field lengths and cleaned of control characters, an implausible year or page count is dropped.
+- `PUT` and `PATCH` never ask Open Library.
+
+This needs internet access to `openlibrary.org`. The tests never use the network.
 
 ### Loans
 
@@ -93,6 +113,11 @@ library:
     overdue-check:
       cron: "0 0 2 * * *"         # second minute hour day month weekday
       batch-size: 100             # members handled per database transaction
+  open-library:
+    base-url: https://openlibrary.org
+    connect-timeout: 2s           # both timeouts are required, at most 30s
+    read-timeout: 3s
+    user-agent: "library-api (Spring Boot learning project)"
 ```
 
 They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or invalid (a limit below 1, an unknown time zone).
@@ -133,6 +158,8 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `LOAN_LIMIT_REACHED` | 422 | The member already has the most open loans allowed |
 | `MEMBER_HAS_OVERDUE_LOAN` | 422 | The member has a loan past its due date |
 | `NOT_A_MEMBER` | 422 | The borrower is not a member (for example an administrator) |
+| `ISBN_NOT_FOUND` | 422 | A new book has no title and Open Library does not know its ISBN |
+| `EXTERNAL_SERVICE_UNAVAILABLE` | 503 | A new book has no title and Open Library could not be reached; send the title or try again later |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
 | `REQUEST_REJECTED` | 4xx | Any other client error |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
@@ -173,7 +200,7 @@ curl http://localhost:8080/api/v1/categories
 
 To look at the database: `docker compose exec postgres psql -U library library`.
 
-A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment); the "Admin jobs" folder starts the overdue check. Watch the application log for the emails and SMS.
+A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment); the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails and SMS.
 
 ## Test
 

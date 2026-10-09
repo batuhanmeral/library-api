@@ -21,10 +21,18 @@ import org.springframework.web.client.RestClient;
  * {@code @RestClientTest}. This bean is built in the same order as Spring Boot builds its own:
  * request factory first, then every RestClientCustomizer (JSON converters, observations and, in
  * tests, the mock server).
+ *
+ * <p>Redirects are not followed by the HTTP client: OpenLibraryClient follows the one redirect it
+ * expects, and only to an edition on the same host. A redirect to anywhere else (an open redirect
+ * on the site, a compromised CDN) would make this application fetch that address and store what it
+ * returns.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(OpenLibraryProperties.class)
 public class OpenLibraryConfig {
+
+    /** An edition record is a few kilobytes. */
+    static final long MAX_RESPONSE_BYTES = 1024 * 1024;
 
     @Bean
     RestClient openLibraryRestClient(
@@ -32,8 +40,7 @@ public class OpenLibraryConfig {
         HttpClientSettings settings =
                 HttpClientSettings.defaults()
                         .withTimeouts(properties.connectTimeout(), properties.readTimeout())
-                        // /isbn/{isbn}.json answers with a redirect to the edition.
-                        .withRedirects(HttpRedirects.FOLLOW_WHEN_POSSIBLE);
+                        .withRedirects(HttpRedirects.DONT_FOLLOW);
         RestClient.Builder builder =
                 RestClient.builder()
                         // The HTTP client on the classpath; here the JDK's
@@ -41,7 +48,8 @@ public class OpenLibraryConfig {
                         .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(settings))
                         .baseUrl(properties.baseUrl())
                         .defaultHeader(HttpHeaders.USER_AGENT, properties.userAgent())
-                        .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+                        .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                        .requestInterceptor(new ResponseSizeLimit(MAX_RESPONSE_BYTES));
         customizers.orderedStream().forEach(customizer -> customizer.customize(builder));
         return builder.build();
     }

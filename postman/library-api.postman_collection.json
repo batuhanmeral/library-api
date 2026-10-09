@@ -482,7 +482,7 @@
                   "});",
                   "pm.test(\"errorCode is VALIDATION_FAILED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"VALIDATION_FAILED\"));",
                   "pm.test(\"Lists the invalid fields\", () => {",
-                  "    pm.expect(pm.response.json().errors.map(e => e.field)).to.include.members([\"isbn\", \"title\", \"totalCopies\", \"authorId\"]);",
+                  "    pm.expect(pm.response.json().errors.map(e => e.field)).to.include.members([\"isbn\", \"totalCopies\", \"authorId\"]);",
                   "});"
                 ]
               }
@@ -500,7 +500,105 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isbn\": \"12-34\",\n  \"title\": \"\",\n  \"totalCopies\": -1\n}"
+            },
+            "description": "With an ISBN in the body the title may be left out (it comes from Open Library), so the blank title is not listed."
+          }
+        },
+        {
+          "name": "Create book without title and ISBN (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"The title is required without an ISBN\", () => {",
+                  "    const error = pm.response.json().errors.find(e => e.field === \"title\");",
+                  "    pm.expect(error.message).to.eql(\"must not be blank when no isbn is given\");",
+                  "});"
+                ]
+              }
             }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalCopies\": 1,\n  \"authorId\": {{authorId}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Create book from its ISBN (Open Library)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Title and details come from Open Library\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.title).to.be.a(\"string\").and.not.be.empty;",
+                  "    pm.expect(body.isbn).to.eql(\"9780441172719\");",
+                  "});",
+                  "pm.collectionVariables.set(\"isbnBookId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"9780441172719\",\n  \"totalCopies\": 1,\n  \"authorId\": {{authorId}}\n}"
+            },
+            "description": "Needs internet access: the application asks https://openlibrary.org for the title, year, page count and description. Values sent in the body would win over Open Library's. Without internet the answer is 503 EXTERNAL_SERVICE_UNAVAILABLE."
+          }
+        },
+        {
+          "name": "Create book with an unknown ISBN (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Error code is ISBN_NOT_FOUND\", () => pm.expect(pm.response.json().errorCode).to.eql(\"ISBN_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/books",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"9798000000009\",\n  \"totalCopies\": 1,\n  \"authorId\": {{authorId}}\n}"
+            },
+            "description": "A valid ISBN-13 that Open Library does not know (404 there). Without a title in the body nothing can be saved. With a title the book would be saved as sent and the log would show a warning."
           }
         },
         {
@@ -750,6 +848,24 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/books/{{bookId}}"
+          }
+        },
+        {
+          "name": "Delete book created from its ISBN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204 No Content\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/books/{{isbnBookId}}"
           }
         },
         {
@@ -1213,6 +1329,10 @@
     },
     {
       "key": "loanId",
+      "value": ""
+    },
+    {
+      "key": "isbnBookId",
       "value": ""
     }
   ]

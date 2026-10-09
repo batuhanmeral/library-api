@@ -4,6 +4,7 @@ import com.batuhanmeral.library.book.dto.BookPatchRequest;
 import com.batuhanmeral.library.book.dto.BookRequest;
 import com.batuhanmeral.library.book.dto.BookResponse;
 import com.batuhanmeral.library.book.dto.BookSearchCriteria;
+import com.batuhanmeral.library.book.dto.NewBookRequest;
 import com.batuhanmeral.library.common.web.PageResponse;
 import com.batuhanmeral.library.common.web.SortableFields;
 import jakarta.validation.Valid;
@@ -35,6 +36,7 @@ public class BookController {
             SortableFields.of("id", "title", "publishedYear", "availableCopies", "createdAt");
 
     private final BookService bookService;
+    private final BookCreationService bookCreationService;
 
     /**
      * The criteria record is bound from the query string (page, size and sort go to the pageable).
@@ -52,9 +54,13 @@ public class BookController {
         return bookService.findById(id);
     }
 
+    /**
+     * With an ISBN, details left out of the request are filled in from Open Library (see
+     * BookCreationService); the title may then be left out too.
+     */
     @PostMapping
-    public ResponseEntity<BookResponse> create(@Valid @RequestBody BookRequest request) {
-        BookResponse created = bookService.create(request);
+    public ResponseEntity<BookResponse> create(@Valid @RequestBody NewBookRequest request) {
+        BookResponse created = bookCreationService.create(request);
         URI location =
                 ServletUriComponentsBuilder.fromCurrentRequest()
                         .path("/{id}")
