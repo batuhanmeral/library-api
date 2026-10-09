@@ -69,6 +69,10 @@ library:
       cron: "0 0 2 * * *"
       # Members per transaction.
       batch-size: 100
+  logging:
+    # A service call that takes at least this long is logged as a warning
+    # (ExecutionTimeAspect). Shorter calls are logged at DEBUG.
+    slow-call-threshold: 500ms
   # Open Library (https://openlibrary.org), asked for the details of a book
   # that is added with an ISBN. Bound to OpenLibraryProperties.
   open-library:

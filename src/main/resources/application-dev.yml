@@ -17,3 +17,5 @@ logging:
   level:
     # Print the SQL statements Hibernate runs.
     org.hibernate.SQL: debug
+    # Print how long every service call takes, not only the slow ones.
+    com.batuhanmeral.library.common.logging.ExecutionTimeAspect: debug

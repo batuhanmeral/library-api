@@ -3,6 +3,8 @@ package com.batuhanmeral.library.author;
 import com.batuhanmeral.library.author.dto.AuthorRequest;
 import com.batuhanmeral.library.author.dto.AuthorResponse;
 import com.batuhanmeral.library.book.BookRepository;
+import com.batuhanmeral.library.common.audit.AuditAction;
+import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +30,14 @@ public class AuthorService {
         return authorMapper.toResponse(getAuthor(id));
     }
 
+    @Auditable(action = AuditAction.AUTHOR_CREATE, target = "#result?.id()")
     @Transactional
     public AuthorResponse create(AuthorRequest request) {
         Author saved = authorRepository.save(authorMapper.toEntity(request));
         return authorMapper.toResponse(saved);
     }
 
+    @Auditable(action = AuditAction.AUTHOR_UPDATE, target = "#id")
     @Transactional
     public AuthorResponse update(Long id, AuthorRequest request) {
         Author author = getAuthor(id);
@@ -43,6 +47,7 @@ public class AuthorService {
         return authorMapper.toResponse(author);
     }
 
+    @Auditable(action = AuditAction.AUTHOR_DELETE, target = "#id")
     @Transactional
     public void delete(Long id) {
         if (!authorRepository.existsById(id)) {

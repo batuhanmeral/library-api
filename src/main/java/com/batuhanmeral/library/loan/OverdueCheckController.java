@@ -1,5 +1,7 @@
 package com.batuhanmeral.library.loan;
 
+import com.batuhanmeral.library.common.audit.AuditAction;
+import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.common.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class OverdueCheckController {
      * thread, so a second request gets its 409 at once instead of a 202 for a run that never
      * happens.
      */
+    @Auditable(action = AuditAction.OVERDUE_CHECK_START)
     @PostMapping("/overdue-check")
     public ResponseEntity<Void> startOverdueCheck() {
         if (!job.tryClaim()) {

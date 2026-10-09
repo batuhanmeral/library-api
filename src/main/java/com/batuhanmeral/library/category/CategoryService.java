@@ -3,6 +3,8 @@ package com.batuhanmeral.library.category;
 import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.category.dto.CategoryRequest;
 import com.batuhanmeral.library.category.dto.CategoryResponse;
+import com.batuhanmeral.library.common.audit.AuditAction;
+import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.DuplicateResourceException;
 import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
@@ -28,6 +30,7 @@ public class CategoryService {
         return categoryMapper.toResponse(getCategory(id));
     }
 
+    @Auditable(action = AuditAction.CATEGORY_CREATE, target = "#result?.id()")
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
         if (categoryRepository.existsByName(request.name())) {
@@ -37,6 +40,7 @@ public class CategoryService {
         return categoryMapper.toResponse(saved);
     }
 
+    @Auditable(action = AuditAction.CATEGORY_UPDATE, target = "#id")
     @Transactional
     public CategoryResponse update(Long id, CategoryRequest request) {
         Category category = getCategory(id);
@@ -50,6 +54,7 @@ public class CategoryService {
         return categoryMapper.toResponse(category);
     }
 
+    @Auditable(action = AuditAction.CATEGORY_DELETE, target = "#id")
     @Transactional
     public void delete(Long id) {
         if (!categoryRepository.existsById(id)) {

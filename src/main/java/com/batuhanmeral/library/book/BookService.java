@@ -8,6 +8,8 @@ import com.batuhanmeral.library.book.dto.BookResponse;
 import com.batuhanmeral.library.book.dto.BookSearchCriteria;
 import com.batuhanmeral.library.category.Category;
 import com.batuhanmeral.library.category.CategoryRepository;
+import com.batuhanmeral.library.common.audit.AuditAction;
+import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.DuplicateResourceException;
 import com.batuhanmeral.library.common.error.InvalidQueryParameterException;
 import com.batuhanmeral.library.common.error.ResourceInUseException;
@@ -84,6 +86,7 @@ public class BookService {
         return bookMapper.toResponse(bookRepository.save(book));
     }
 
+    @Auditable(action = AuditAction.BOOK_UPDATE, target = "#id")
     @Transactional
     public BookResponse update(Long id, BookRequest request) {
         Book book = getBook(id);
@@ -97,6 +100,7 @@ public class BookService {
     }
 
     /** Changes only the fields that were sent; see {@link BookPatchRequest}. */
+    @Auditable(action = AuditAction.BOOK_UPDATE, target = "#id")
     @Transactional
     public BookResponse patch(Long id, BookPatchRequest request) {
         Book book = getBook(id);
@@ -121,6 +125,7 @@ public class BookService {
      * A book with loans cannot be deleted: the loans point to it (fk_loans_book) and are the
      * library's record of who had which book. Open loans get their own message.
      */
+    @Auditable(action = AuditAction.BOOK_DELETE, target = "#id")
     @Transactional
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {

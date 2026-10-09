@@ -5,6 +5,8 @@ import com.batuhanmeral.library.book.dto.BookResponse;
 import com.batuhanmeral.library.book.dto.NewBookRequest;
 import com.batuhanmeral.library.book.openlibrary.OpenLibraryBook;
 import com.batuhanmeral.library.book.openlibrary.OpenLibraryClient;
+import com.batuhanmeral.library.common.audit.AuditAction;
+import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.common.error.ErrorCode;
 import com.batuhanmeral.library.common.error.ExternalServiceUnavailableException;
@@ -38,6 +40,7 @@ public class BookCreationService {
     private final OpenLibraryClient openLibraryClient;
     private final BookService bookService;
 
+    @Auditable(action = AuditAction.BOOK_CREATE, target = "#result?.id()")
     public BookResponse create(NewBookRequest request) {
         OpenLibraryBook found =
                 request.canBeCompleted()

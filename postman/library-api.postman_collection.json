@@ -118,13 +118,66 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Body is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));"
+                  "pm.test(\"Body is an array\", () => pm.expect(pm.response.json()).to.be.an(\"array\"));",
+                  "pm.test(\"Response has a request id\", () => pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/));"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "List categories with my own request id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The request id sent is returned\", () => pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.eql(\"postman-request-1\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "postman-request-1",
+                "description": "Letters, digits, '.', '_' and '-', up to 64 characters. The application log shows [postman-request-1] on every line of this request."
+              }
+            ],
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "Send a request id that is not safe to log (replaced)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"A new request id replaces the one sent\", () => pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-Id",
+                "value": "not <safe> to log",
+                "description": "Spaces and other characters are not accepted; the API makes up a new id."
+              }
+            ],
             "url": "{{baseUrl}}/categories"
           }
         },

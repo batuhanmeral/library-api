@@ -1,5 +1,7 @@
 package com.batuhanmeral.library.loan;
 
+import com.batuhanmeral.library.common.audit.AuditAction;
+import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.web.PageResponse;
 import com.batuhanmeral.library.common.web.SortableFields;
 import com.batuhanmeral.library.loan.dto.LoanRequest;
@@ -31,6 +33,11 @@ public class LoanController {
     private final LoanService loanService;
     private final LoanFacade loanFacade;
 
+    /**
+     * Audited here rather than on LoanFacade: the {@code @Retryable} proxy always puts itself in
+     * front of a bean's other advice, so on the facade every attempt would be audited.
+     */
+    @Auditable(action = AuditAction.LOAN_BORROW, target = "#request.bookId()")
     @PostMapping
     public ResponseEntity<LoanResponse> borrow(@Valid @RequestBody LoanRequest request) {
         LoanResponse created = loanFacade.borrow(request);
@@ -46,6 +53,7 @@ public class LoanController {
      * Returning is an action on a loan, not a field a client sets, so it is a POST to a
      * sub-resource rather than a PATCH of the status.
      */
+    @Auditable(action = AuditAction.LOAN_RETURN, target = "#id")
     @PostMapping("/{id}/return")
     public LoanResponse returnBook(@PathVariable Long id) {
         return loanFacade.returnBook(id);

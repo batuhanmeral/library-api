@@ -11,6 +11,7 @@ A REST API for running a small library: the book catalog, its members and their 
 - A member can have at most 3 active loans and cannot borrow a new book while one of their loans is overdue.
 - Every night, loans past their due date are marked as overdue and the member gets a reminder.
 - When a book is added with an ISBN, its missing details are filled in from Open Library.
+- Every request gets an id, returned in a header and printed on every log line it causes; changes are written to an audit log.
 - Sign in with JWT; administrators and members have different permissions, and members see only their own loans.
 - Frequently read data is cached in Redis.
 - Interactive API documentation with Swagger UI.
@@ -100,6 +101,25 @@ There are no user accounts yet: the member is sent in the request. With the `dev
 
 Emails and SMS are not really sent; they are written to the application log, with the address shortened to its first letter and domain (`m***@example.com`) and the phone number to its last two digits (`***00`).
 
+### Request ids and logs
+
+- Every response has an `X-Request-Id` header. A client can send its own id (letters, digits, `.`, `_` and `-`, up to 64 characters), for example to follow a request through a gateway; any other value is replaced by a new id. Quote the id when reporting a problem.
+- Every log line written while serving a request shows its id in brackets, also the lines of work the request started in the background (the overdue check):
+
+  ```text
+  ... [postman-request-1] c.b.l.c.l.RequestLoggingInterceptor : GET /api/v1/categories returned 200 in 4 ms (CategoryController.findAll)
+  ```
+
+- Each API call is logged with its method, path, status, duration and the controller method that served it. Query strings are not logged.
+- Changes are written to the `audit` logger, one line each: creating, updating and deleting categories, authors and books, borrowing and returning, starting the overdue check. A line has the action, the id of what was changed, who made the change (`system` until sign-in exists) and the outcome; a refused change names its error code:
+
+  ```text
+  action=AUTHOR_DELETE target=3 actor=system outcome=FAILURE reason=RESOURCE_IN_USE
+  ```
+
+- A service call that takes 500 ms or more is logged as a warning. With the `dev` profile the duration of every service call is logged.
+- With the `prod` profile, log lines are JSON objects in [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html); the request id is the `requestId` field.
+
 ### Settings
 
 ```yaml
@@ -118,6 +138,8 @@ library:
     connect-timeout: 2s           # both timeouts are required, at most 30s
     read-timeout: 3s
     user-agent: "library-api (Spring Boot learning project)"
+  logging:
+    slow-call-threshold: 500ms    # service calls at least this long are logged as warnings
 ```
 
 They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or invalid (a limit below 1, an unknown time zone).
@@ -200,7 +222,7 @@ curl http://localhost:8080/api/v1/categories
 
 To look at the database: `docker compose exec postgres psql -U library library`.
 
-A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment); the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails and SMS.
+A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment); the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
 
 ## Test
 
