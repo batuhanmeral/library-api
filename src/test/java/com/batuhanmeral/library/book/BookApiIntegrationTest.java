@@ -161,6 +161,33 @@ class BookApiIntegrationTest implements DatabaseTest {
         }
     }
 
+    /**
+     * PostgreSQL cannot store U+0000 in a text column at all ("invalid byte sequence", SQLState
+     * 22021), and it refuses it in a query parameter too. That is a value the client sent, so 400,
+     * not the 409 of a conflict with other rows.
+     */
+    @Test
+    void aNulCharacterInATitleIs400() {
+        MvcTestResult result =
+                post(
+                        BOOKS,
+                        "{\"title\": \"Du\\u0000ne\", \"totalCopies\": 1, \"authorId\": %d}"
+                                .formatted(authorId));
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("The request contains a value that cannot be stored.");
+    }
+
+    @Test
+    void aNulCharacterInASearchIs400() {
+        MvcTestResult result = mvc.get().uri(BOOKS).param("title", "Du\u0000ne").exchange();
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST");
+    }
+
     @Test
     void createReturns404WhenTheAuthorDoesNotExist() {
         MvcTestResult result = post(BOOKS, bookJson("The Hobbit", null, 1, 9999));

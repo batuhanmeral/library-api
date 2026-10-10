@@ -4,8 +4,10 @@ import com.batuhanmeral.library.auth.InvalidTokenException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
+import org.hibernate.exception.DataException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -38,6 +40,28 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String ERROR_CODE = "errorCode";
 
+    /**
+     * Database constraints that guard a business rule the service also checks. When the database is
+     * the one to refuse (the service check was missed), the client gets the rule's own code, as if
+     * the service had refused. Any other violation is a DATA_CONFLICT.
+     */
+    private static final Map<String, RuleViolation> RULE_CONSTRAINTS =
+            Map.of(
+                    "uk_loans_open_member_book",
+                    new RuleViolation(
+                            ErrorCode.BOOK_ALREADY_BORROWED,
+                            "The member already has this book on loan."));
+
+    private record RuleViolation(ErrorCode errorCode, String detail) {}
+
+    /**
+     * SQLState 22021 (character_not_in_repertoire): PostgreSQL refuses a NUL character (U+0000) in
+     * any text value, stored or compared. The client sent it, so it is a bad request, not a
+     * conflict and not a server error. Other SQLState class 22 errors (a value too long, a bad
+     * cast) mean a check is missing in the application and keep their own handling.
+     */
+    private static final String UNSTORABLE_CHARACTER = "22021";
+
     @ExceptionHandler(ApiException.class)
     ProblemDetail handleApiException(ApiException ex, HttpServletRequest request) {
         return problem(ex.getErrorCode(), ex.getMessage(), request);
@@ -46,13 +70,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail handleDataIntegrityViolation(
             DataIntegrityViolationException ex, HttpServletRequest request) {
+        if (isUnstorableCharacter(ex)) {
+            return unstorableValue(request);
+        }
         // The database message names tables and repeats the rejected values, which may hold line
         // breaks. Neither the client nor the log gets it; the constraint name is enough to debug.
         String constraint =
                 ex.getCause() instanceof ConstraintViolationException violation
                         ? violation.getConstraintName()
-                        : "unknown";
-        log.warn("Database constraint violated: {}", constraint);
+                        : null;
+        log.warn("Database constraint violated: {}", constraint == null ? "unknown" : constraint);
+        RuleViolation rule = constraint == null ? null : RULE_CONSTRAINTS.get(constraint);
+        if (rule != null) {
+            return problem(rule.errorCode(), rule.detail(), request);
+        }
         return problem(
                 ErrorCode.DATA_CONFLICT, "The request conflicts with existing data.", request);
     }
@@ -80,6 +111,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     ResponseEntity<ProblemDetail> handleAuthentication(
             AuthenticationException ex, HttpServletRequest request) {
+        if (ex instanceof InternalAuthenticationServiceException && isUnstorableCharacter(ex)) {
+            // Spring Security wraps every failure of the user lookup, this one too.
+            return ResponseEntity.badRequest().body(unstorableValue(request));
+        }
         if (ex instanceof InternalAuthenticationServiceException) {
             // Not the client's credentials: the account could not be loaded (the database is
             // down, for example). A 401 would tell the client to log in and hide the outage.
@@ -186,6 +221,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      */
     private static String messageOf(FieldError error) {
         return error.isBindingFailure() ? "has an invalid value" : error.getDefaultMessage();
+    }
+
+    private static boolean isUnstorableCharacter(Throwable ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof DataException data
+                    && UNSTORABLE_CHARACTER.equals(data.getSQLState())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static ProblemDetail unstorableValue(HttpServletRequest request) {
+        log.info("Database refused a character in a value (SQLState {})", UNSTORABLE_CHARACTER);
+        return problem(
+                ErrorCode.MALFORMED_REQUEST,
+                "The request contains a value that cannot be stored.",
+                request);
     }
 
     private static ProblemDetail problem(

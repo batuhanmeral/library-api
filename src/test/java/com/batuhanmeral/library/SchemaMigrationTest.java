@@ -37,7 +37,10 @@ class SchemaMigrationTest implements DatabaseTest {
     @Test
     void allMigrationsAreApplied() {
         assertThat(Arrays.stream(flyway.info().applied()).map(MigrationInfo::getScript))
-                .containsExactly("V1__create_schema.sql", "V2__add_book_version.sql");
+                .containsExactly(
+                        "V1__create_schema.sql",
+                        "V2__add_book_version.sql",
+                        "V3__one_open_loan_per_member_and_book.sql");
     }
 
     @Test
@@ -91,7 +94,62 @@ class SchemaMigrationTest implements DatabaseTest {
                 .hasMessageContaining("fk_books_author");
     }
 
-    private void insertBook(int totalCopies, int availableCopies) {
+    @Test
+    void aMemberCannotHaveTwoOpenLoansOfTheSameBook() {
+        long bookId = insertBook(2, 2);
+        long memberId = insertMember();
+        insertLoan(bookId, memberId, "ACTIVE");
+
+        assertThatThrownBy(() -> insertLoan(bookId, memberId, "OVERDUE"))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .hasMessageContaining("uk_loans_open_member_book");
+    }
+
+    @Test
+    void returnedLoansDoNotCountAsOpen() {
+        // The index is partial: returned loans are not in it, so a member may borrow the same
+        // book again, and again.
+        long bookId = insertBook(1, 1);
+        long memberId = insertMember();
+        insertLoan(bookId, memberId, "RETURNED");
+        insertLoan(bookId, memberId, "RETURNED");
+        insertLoan(bookId, memberId, "ACTIVE");
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from loans", Integer.class))
+                .isEqualTo(3);
+    }
+
+    @Test
+    void twoMembersMayBorrowTheSameBook() {
+        long bookId = insertBook(2, 2);
+        insertLoan(bookId, insertMember(), "ACTIVE");
+        insertLoan(bookId, insertMember(), "ACTIVE");
+
+        assertThat(jdbcTemplate.queryForObject("select count(*) from loans", Integer.class))
+                .isEqualTo(2);
+    }
+
+    private long insertMember() {
+        jdbcTemplate.update(
+                "insert into users (email, password, full_name, role, created_at, updated_at)"
+                        + " values (gen_random_uuid() || '@example.com', 'x', 'A', 'MEMBER',"
+                        + " current_timestamp, current_timestamp)");
+        return jdbcTemplate.queryForObject("select max(id) from users", Long.class);
+    }
+
+    private void insertLoan(long bookId, long memberId, String status) {
+        jdbcTemplate.update(
+                "insert into loans (book_id, member_id, loan_date, due_date, return_date, status,"
+                        + " created_at, updated_at, created_by, updated_by) values (?, ?,"
+                        + " current_date, current_date, case when ? = 'RETURNED' then current_date"
+                        + " end, ?, current_timestamp, current_timestamp, 'test', 'test')",
+                bookId,
+                memberId,
+                status,
+                status);
+    }
+
+    private long insertBook(int totalCopies, int availableCopies) {
         jdbcTemplate.update(
                 "insert into books (title, total_copies, available_copies, author_id, created_at,"
                         + " updated_at, created_by, updated_by) values ('The Hobbit', ?, ?, ?,"
@@ -99,5 +157,6 @@ class SchemaMigrationTest implements DatabaseTest {
                 totalCopies,
                 availableCopies,
                 authorId);
+        return jdbcTemplate.queryForObject("select max(id) from books", Long.class);
     }
 }

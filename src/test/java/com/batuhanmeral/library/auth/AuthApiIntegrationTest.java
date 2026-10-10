@@ -161,6 +161,18 @@ class AuthApiIntegrationTest implements DatabaseTest {
                 "VALIDATION_FAILED");
     }
 
+    /**
+     * The email is looked up inside Spring Security, which wraps any failure of the lookup as an
+     * internal error. A NUL that PostgreSQL refuses is still the client's mistake: 400, not 500.
+     */
+    @Test
+    void aNulCharacterInTheLoginEmailIs400() {
+        assertProblem(
+                login("ada\\u0000@example.com", "correct horse"),
+                HttpStatus.BAD_REQUEST,
+                "MALFORMED_REQUEST");
+    }
+
     private MvcTestResult register(String json) {
         return mvc.post()
                 .uri(REGISTER)

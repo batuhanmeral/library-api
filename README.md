@@ -211,7 +211,7 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | errorCode | Status | When |
 |---|---|---|
 | `VALIDATION_FAILED` | 400 | A body field or a search filter is missing or invalid; `errors` lists each field |
-| `MALFORMED_REQUEST` | 400 | The body is not valid JSON or a path value has the wrong type |
+| `MALFORMED_REQUEST` | 400 | The body is not valid JSON, a path value has the wrong type, or a text value cannot be stored (a NUL character) |
 | `INVALID_PARAMETER` | 400 | A query parameter cannot be used: a sort field that is not allowed, or `yearFrom` after `yearTo` |
 | `AUTHENTICATION_REQUIRED` | 401 | No token where one is needed |
 | `INVALID_TOKEN` | 401 | The token is malformed, signed with another key or expired |
