@@ -2,12 +2,12 @@ package com.batuhanmeral.library.author;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,28 +15,18 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class AuthorApiIntegrationTest {
+class AuthorApiIntegrationTest implements DatabaseTest {
 
     private static final String AUTHORS = "/api/v1/authors";
 
     @Autowired private MockMvcTester mvc;
 
     @Autowired private JwtService jwt;
-
-    @Autowired private JdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void cleanDatabase() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
-    }
 
     @Test
     void createReturns201WithLocationAndAuditTimestamps() {

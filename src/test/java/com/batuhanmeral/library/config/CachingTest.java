@@ -2,6 +2,7 @@ package com.batuhanmeral.library.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.book.BookService;
@@ -28,8 +29,6 @@ import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -47,13 +46,11 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
             "spring.jpa.properties.hibernate.generate_statistics=true"
         })
 @AutoConfigureMockMvc
-class CachingTest {
+class CachingTest implements DatabaseTest {
 
     @Autowired private MockMvcTester mvc;
 
     @Autowired private JwtService jwt;
-
-    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Autowired private CacheManager cacheManager;
 
@@ -69,14 +66,6 @@ class CachingTest {
 
     @BeforeEach
     void startEmpty() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
         statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         authorId = idOf(asAdmin(post("/api/v1/authors", "{\"name\": \"Frank Herbert\"}")));

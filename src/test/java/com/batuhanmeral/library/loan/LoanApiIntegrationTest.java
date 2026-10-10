@@ -2,6 +2,7 @@ package com.batuhanmeral.library.loan;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.book.BookRepository;
@@ -34,7 +35,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class LoanApiIntegrationTest {
+class LoanApiIntegrationTest implements DatabaseTest {
 
     private static final String LOANS = "/api/v1/loans";
 
@@ -57,14 +58,6 @@ class LoanApiIntegrationTest {
 
     @BeforeEach
     void createAnAuthorAndAMember() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         authorId = idOf(post("/api/v1/authors", "{\"name\": \"Frank Herbert\"}"));
         memberId = saveMember("ada@example.com");
     }

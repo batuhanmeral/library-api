@@ -2,6 +2,7 @@ package com.batuhanmeral.library.common.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import java.util.List;
@@ -24,7 +25,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
-class RequestLoggingTest {
+class RequestLoggingTest implements DatabaseTest {
 
     private static final String CATEGORIES = "/api/v1/categories";
 
@@ -52,7 +53,10 @@ class RequestLoggingTest {
     void eachApiCallIsLoggedWithItsRequestIdStatusAndHandler(CapturedOutput output) {
         mvc.get().uri(CATEGORIES).header(RequestIdFilter.HEADER, "logging-test-1").exchange();
 
+        // Only the interceptor's lines: other lines of the request carry the id too, such as the
+        // SQL that another test class turned on for the whole JVM (log levels are global).
         assertThat(linesWith(output, "logging-test-1"))
+                .filteredOn(line -> line.contains("RequestLoggingInterceptor"))
                 .singleElement()
                 .asString()
                 .contains("[logging-test-1]")

@@ -3,6 +3,7 @@ package com.batuhanmeral.library.author;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.book.Book;
 import com.batuhanmeral.library.config.JpaAuditingConfig;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ import org.springframework.context.annotation.Import;
 /** Author.books is the inverse side of Book.author; only Book.author writes the foreign key. */
 @DataJpaTest
 @Import(JpaAuditingConfig.class)
-class AuthorBooksRelationshipTest {
+class AuthorBooksRelationshipTest implements DatabaseTest {
 
     @Autowired private TestEntityManager entityManager;
 

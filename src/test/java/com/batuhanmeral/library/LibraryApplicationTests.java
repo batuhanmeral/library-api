@@ -11,7 +11,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.config.ScheduledTaskHolder;
 
 @SpringBootTest
-class LibraryApplicationTests {
+class LibraryApplicationTests implements DatabaseTest {
 
     @Autowired private Clock clock;
 

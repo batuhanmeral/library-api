@@ -2,12 +2,12 @@ package com.batuhanmeral.library.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.user.Role;
 import com.batuhanmeral.library.user.User;
 import com.batuhanmeral.library.user.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -17,15 +17,13 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class AuthApiIntegrationTest {
+class AuthApiIntegrationTest implements DatabaseTest {
 
     private static final String REGISTER = "/api/v1/auth/register";
     private static final String LOGIN = "/api/v1/auth/login";
@@ -35,13 +33,6 @@ class AuthApiIntegrationTest {
     @Autowired private UserRepository userRepository;
 
     @Autowired private PasswordEncoder passwordEncoder;
-
-    @Autowired private JdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void cleanDatabase() {
-        JdbcTestUtils.deleteFromTables(jdbcTemplate, "loans", "users");
-    }
 
     @Test
     void registerCreatesAMemberAndStoresOnlyABcryptHash() {

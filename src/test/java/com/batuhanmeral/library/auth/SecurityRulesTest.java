@@ -2,6 +2,7 @@ package com.batuhanmeral.library.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.common.logging.RequestIdFilter;
 import com.batuhanmeral.library.user.Role;
 import java.nio.charset.StandardCharsets;
@@ -19,8 +20,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -31,7 +30,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
-class SecurityRulesTest {
+class SecurityRulesTest implements DatabaseTest {
 
     @Autowired private MockMvcTester mvc;
 
@@ -41,15 +40,11 @@ class SecurityRulesTest {
 
     @Autowired private Clock clock;
 
-    @Autowired private JdbcTemplate jdbcTemplate;
-
     private String admin;
     private String member;
 
     @BeforeEach
     void tokens() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
         admin = TestTokens.admin(jwt);
         member = TestTokens.member(jwt, 77);
     }

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.MutableClock;
 import com.batuhanmeral.library.MutableClockConfig;
 import com.batuhanmeral.library.auth.JwtService;
@@ -35,7 +36,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -47,7 +47,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(MutableClockConfig.class)
-class OverdueCheckApiTest {
+class OverdueCheckApiTest implements DatabaseTest {
 
     private static final String OVERDUE_CHECK = "/api/v1/admin/jobs/overdue-check";
 
@@ -75,14 +75,6 @@ class OverdueCheckApiTest {
 
     @BeforeEach
     void saveALoanThatIsOverdue() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         clock.setInstant(Instant.now());
         Author author = authorRepository.save(new Author("Frank Herbert"));
         Book book = new Book("Dune", 1);

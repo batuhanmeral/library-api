@@ -1,6 +1,7 @@
 # Settings shared by every profile. The database connection is set per profile:
 # application-dev.yml (local Docker PostgreSQL) and application-prod.yml
-# (environment variables). Tests set no profile and get an in-memory H2 database.
+# (environment variables). Tests set no profile and get a PostgreSQL container
+# (Testcontainers).
 spring:
   application:
     name: library-api

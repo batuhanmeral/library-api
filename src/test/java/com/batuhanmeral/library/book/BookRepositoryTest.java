@@ -2,6 +2,7 @@ package com.batuhanmeral.library.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.book.dto.BookSearchCriteria;
 import com.batuhanmeral.library.category.Category;
@@ -31,7 +32,7 @@ import org.springframework.data.jpa.domain.Specification;
         })
 @Import(JpaAuditingConfig.class)
 @ExtendWith(OutputCaptureExtension.class)
-class BookRepositoryTest {
+class BookRepositoryTest implements DatabaseTest {
 
     @Autowired private TestEntityManager entityManager;
 

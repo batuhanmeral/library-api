@@ -9,6 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.notification.EmailNotificationService;
@@ -40,7 +41,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class LoanNotificationTest {
+class LoanNotificationTest implements DatabaseTest {
 
     private static final Recipient ADA = new Recipient("ada@example.com", null);
 
@@ -61,14 +62,6 @@ class LoanNotificationTest {
 
     @BeforeEach
     void createAnAuthorAndAMember() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         authorId = idOf(post("/api/v1/authors", "{\"name\": \"Frank Herbert\"}"));
         memberId =
                 userRepository

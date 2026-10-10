@@ -3,6 +3,7 @@ package com.batuhanmeral.library.book;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -22,7 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * not use @DataJpaTest's single rolled-back transaction.
  */
 @SpringBootTest
-class BookOptimisticLockingTest {
+class BookOptimisticLockingTest implements DatabaseTest {
 
     @Autowired private BookRepository bookRepository;
 
@@ -36,8 +36,6 @@ class BookOptimisticLockingTest {
 
     @BeforeEach
     void saveABookWithTwoCopies() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
         Author author = authorRepository.save(new Author("Frank Herbert"));
         Book book = new Book("Dune", 2);
         book.setAuthor(author);

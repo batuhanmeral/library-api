@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.author.Author;
@@ -23,7 +24,6 @@ import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.aop.Advisor;
@@ -42,8 +42,6 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,13 +57,11 @@ import org.springframework.util.ClassUtils;
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 @Import(AuditTrailTest.CommitFailureConfig.class)
-class AuditTrailTest {
+class AuditTrailTest implements DatabaseTest {
 
     @Autowired private MockMvcTester mvc;
 
     @Autowired private ApplicationContext context;
-
-    @Autowired private JdbcTemplate jdbcTemplate;
 
     @Autowired private AuthorRepository authorRepository;
 
@@ -86,18 +82,6 @@ class AuditTrailTest {
     @Autowired private JwtService jwt;
 
     private static final String ADMIN_ACTOR = "actor=user:" + TestTokens.ADMIN_ID;
-
-    @BeforeEach
-    void cleanDatabase() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
-    }
 
     @Test
     void creatingUpdatingAndDeletingACategoryIsAudited(CapturedOutput output) {

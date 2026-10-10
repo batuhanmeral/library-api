@@ -2,6 +2,12 @@
 # reads both, and classpath:/config/ wins over classpath:/. Only the tests have
 # this file on their classpath.
 spring:
+  datasource:
+    hikari:
+      # The test contexts are cached and each keeps its pool open, all against one
+      # PostgreSQL container (DatabaseTest). Small pools keep the total
+      # low; six is enough for the largest race in LoanConcurrencyTest (five).
+      maximum-pool-size: 6
   cache:
     # No cache: a test never reads an entry another test left behind. CachingTest
     # turns on an in-memory cache for itself.

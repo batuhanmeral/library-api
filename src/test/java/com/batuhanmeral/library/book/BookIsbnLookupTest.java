@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.book.openlibrary.OpenLibraryBook;
@@ -45,7 +46,7 @@ import org.springframework.web.client.ResourceAccessException;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
-class BookIsbnLookupTest {
+class BookIsbnLookupTest implements DatabaseTest {
 
     private static final String BOOKS = "/api/v1/books";
     private static final String ISBN = "9780441172719";
@@ -64,14 +65,6 @@ class BookIsbnLookupTest {
 
     @BeforeEach
     void createAnAuthor() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         authorId = idOf(post("/api/v1/authors", "{\"name\": \"Frank Herbert\"}"));
     }
 

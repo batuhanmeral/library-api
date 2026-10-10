@@ -2,11 +2,11 @@ package com.batuhanmeral.library.category;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -16,14 +16,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class CategoryApiIntegrationTest {
+class CategoryApiIntegrationTest implements DatabaseTest {
 
     private static final String CATEGORIES = "/api/v1/categories";
 
@@ -32,15 +30,6 @@ class CategoryApiIntegrationTest {
     @Autowired private JwtService jwt;
 
     @Autowired private CategoryRepository categoryRepository;
-
-    @Autowired private JdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void cleanDatabase() {
-        // Other test classes share this database; rows that point to categories go first.
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
-    }
 
     @Test
     void createReturns201WithLocationHeaderAndTheNewCategory() {

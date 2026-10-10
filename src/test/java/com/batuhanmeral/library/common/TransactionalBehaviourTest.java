@@ -3,6 +3,7 @@ package com.batuhanmeral.library.common;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.category.Category;
 import com.batuhanmeral.library.category.CategoryRepository;
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * Each test commits for real, so it cleans the categories table first.
  */
 @SpringBootTest
-class TransactionalBehaviourTest {
+class TransactionalBehaviourTest implements DatabaseTest {
 
     @Autowired private Demo demo;
 
@@ -33,8 +34,6 @@ class TransactionalBehaviourTest {
 
     @BeforeEach
     void cleanDatabase() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
         demo.transactionNames().clear();
     }
 

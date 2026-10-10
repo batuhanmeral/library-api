@@ -2,6 +2,7 @@ package com.batuhanmeral.library.loan;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -20,7 +21,7 @@ import org.springframework.scheduling.support.SimpleTriggerContext;
  * {@code @EnableScheduling} implements.
  */
 @SpringBootTest(properties = "library.scheduling.enabled=true")
-class OverdueLoanSchedulingTest {
+class OverdueLoanSchedulingTest implements DatabaseTest {
 
     @Autowired private ScheduledTaskHolder scheduledTasks;
 

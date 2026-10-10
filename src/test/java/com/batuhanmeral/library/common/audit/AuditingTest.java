@@ -2,6 +2,7 @@ package com.batuhanmeral.library.common.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.AuthenticatedUser;
 import com.batuhanmeral.library.category.Category;
 import com.batuhanmeral.library.config.JpaAuditingConfig;
@@ -24,7 +25,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
  */
 @DataJpaTest
 @Import(JpaAuditingConfig.class)
-class AuditingTest {
+class AuditingTest implements DatabaseTest {
 
     @Autowired private TestEntityManager entityManager;
 

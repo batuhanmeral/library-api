@@ -2,6 +2,7 @@ package com.batuhanmeral.library.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import com.jayway.jsonpath.JsonPath;
@@ -24,7 +25,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class BookApiIntegrationTest {
+class BookApiIntegrationTest implements DatabaseTest {
 
     private static final String BOOKS = "/api/v1/books";
 
@@ -40,8 +41,6 @@ class BookApiIntegrationTest {
 
     @BeforeEach
     void createAuthorAndCategories() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate, "loans", "book_categories", "books", "authors", "categories");
         authorId = idOf(post("/api/v1/authors", "{\"name\": \"J. R. R. Tolkien\"}"));
         fantasyId = idOf(post("/api/v1/categories", "{\"name\": \"Fantasy\"}"));
         classicsId = idOf(post("/api/v1/categories", "{\"name\": \"Classics\"}"));

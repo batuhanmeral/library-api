@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.MutableClock;
 import com.batuhanmeral.library.MutableClockConfig;
 import com.batuhanmeral.library.author.Author;
@@ -37,7 +38,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.jdbc.JdbcTestUtils;
 
 /**
  * The nightly job, run by hand with a clock the test moves forward. The batch size is 2, so five
@@ -45,7 +45,7 @@ import org.springframework.test.jdbc.JdbcTestUtils;
  */
 @SpringBootTest(properties = "library.loan.overdue-check.batch-size=2")
 @Import(MutableClockConfig.class)
-class OverdueLoanJobTest {
+class OverdueLoanJobTest implements DatabaseTest {
 
     @Autowired private OverdueLoanJob job;
 
@@ -71,14 +71,6 @@ class OverdueLoanJobTest {
 
     @BeforeEach
     void cleanTablesAndResetTheClock() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         clock.setInstant(Instant.now());
         author = authorRepository.save(new Author("Frank Herbert"));
     }

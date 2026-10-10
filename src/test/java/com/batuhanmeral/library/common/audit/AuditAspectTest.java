@@ -24,9 +24,11 @@ class AuditAspectTest {
     void aSuccessfulCallIsAuditedWithItsTargetAndActor(CapturedOutput output) {
         catalog.delete(7L);
 
+        // The level and the logger name, in any line layout: Spring Boot's pattern when a test
+        // context set up logging earlier in the run, Logback's default when this class runs alone.
         assertThat(output)
                 .containsPattern(
-                        "INFO .* audit\\s+: action=BOOK_DELETE target=7 actor=librarian"
+                        "INFO\\s.*\\baudit\\b.*action=BOOK_DELETE target=7 actor=librarian"
                                 + " outcome=SUCCESS");
     }
 

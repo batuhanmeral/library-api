@@ -6,16 +6,27 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The dev profile also runs the scripts in db/dev. They must work on every database the migrations
  * run on and must be safe to run again.
+ *
+ * <p>This test does not share the PostgreSQL of {@link DatabaseTest}: it adds db/dev to the Flyway
+ * history, and every later context would then refuse to start ("applied migration not resolved
+ * locally"), because the other tests do not have db/dev on their Flyway path. A server of its own
+ * costs a few seconds and keeps the shared history clean.
  */
 @DataJpaTest(properties = "spring.flyway.locations=classpath:db/migration,classpath:db/dev")
 class DevDataMigrationTest {
+
+    @ServiceConnection
+    static final PostgreSQLContainer POSTGRES =
+            new PostgreSQLContainer(DatabaseTest.POSTGRES_IMAGE);
 
     @Autowired private Flyway flyway;
 
@@ -53,8 +64,7 @@ class DevDataMigrationTest {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void aDemoMemberFromAnEarlierVersionGetsThePhoneToo() {
         jdbcTemplate.update("update users set phone = null where email = 'member@example.com'");
-        // Flyway quotes its table and column names; H2 would read them upper case otherwise.
-        jdbcTemplate.update("delete from \"flyway_schema_history\" where \"version\" is null");
+        jdbcTemplate.update("delete from flyway_schema_history where version is null");
 
         flyway.migrate();
 

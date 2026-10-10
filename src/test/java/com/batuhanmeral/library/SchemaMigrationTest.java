@@ -18,7 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * it. These tests check the rules that live only in the database.
  */
 @DataJpaTest
-class SchemaMigrationTest {
+class SchemaMigrationTest implements DatabaseTest {
 
     @Autowired private Flyway flyway;
 
@@ -88,7 +88,7 @@ class SchemaMigrationTest {
 
         assertThatThrownBy(() -> jdbcTemplate.update("delete from authors where id = ?", authorId))
                 .isInstanceOf(DataIntegrityViolationException.class)
-                .hasMessageContaining("FK_BOOKS_AUTHOR");
+                .hasMessageContaining("fk_books_author");
     }
 
     private void insertBook(int totalCopies, int availableCopies) {

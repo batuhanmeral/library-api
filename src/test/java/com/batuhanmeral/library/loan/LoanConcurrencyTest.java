@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
 import com.batuhanmeral.library.book.Book;
@@ -47,7 +48,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * transaction after it has read and changed the book and before it commits.
  */
 @SpringBootTest
-class LoanConcurrencyTest {
+class LoanConcurrencyTest implements DatabaseTest {
 
     @Autowired private LoanService loanService;
 
@@ -73,14 +74,6 @@ class LoanConcurrencyTest {
 
     @BeforeEach
     void saveTheLastCopyAndTwoMembers() {
-        JdbcTestUtils.deleteFromTables(
-                jdbcTemplate,
-                "loans",
-                "book_categories",
-                "books",
-                "authors",
-                "categories",
-                "users");
         Author author = authorRepository.save(new Author("Frank Herbert"));
         Book book = new Book("Dune", 1);
         book.setAuthor(author);

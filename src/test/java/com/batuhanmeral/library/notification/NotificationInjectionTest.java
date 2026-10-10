@@ -2,6 +2,7 @@ package com.batuhanmeral.library.notification;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -16,7 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * collection all of them.
  */
 @SpringBootTest
-class NotificationInjectionTest {
+class NotificationInjectionTest implements DatabaseTest {
 
     @Autowired private NotificationService byTypeOnly;
 

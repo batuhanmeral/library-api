@@ -2,6 +2,7 @@ package com.batuhanmeral.library.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.DatabaseTest;
 import com.batuhanmeral.library.auth.JwtService;
 import com.batuhanmeral.library.auth.TestTokens;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,14 +12,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class UserApiIntegrationTest {
+class UserApiIntegrationTest implements DatabaseTest {
 
     @Autowired private MockMvcTester mvc;
 
@@ -26,13 +25,10 @@ class UserApiIntegrationTest {
 
     @Autowired private UserRepository userRepository;
 
-    @Autowired private JdbcTemplate jdbcTemplate;
-
     private User ada;
 
     @BeforeEach
     void saveTwoMembers() {
-        JdbcTestUtils.deleteFromTables(jdbcTemplate, "loans", "users");
         ada = userRepository.save(new User("ada@example.com", "{noop}x", "Ada", Role.MEMBER));
         userRepository.save(new User("bob@example.com", "{noop}x", "Bob", Role.MEMBER));
     }
