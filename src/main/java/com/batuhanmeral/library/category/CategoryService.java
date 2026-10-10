@@ -8,8 +8,12 @@ import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.DuplicateResourceException;
 import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
+import com.batuhanmeral.library.config.CacheNames;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,8 @@ public class CategoryService {
     private final BookRepository bookRepository;
     private final CategoryMapper categoryMapper;
 
+    /** The whole list is one entry; any change of a category drops it. */
+    @Cacheable(cacheNames = CacheNames.CATEGORIES, key = CacheNames.ALL)
     public List<CategoryResponse> findAll() {
         return categoryRepository.findAll().stream().map(categoryMapper::toResponse).toList();
     }
@@ -31,6 +37,7 @@ public class CategoryService {
     }
 
     @Auditable(action = AuditAction.CATEGORY_CREATE, target = "#result?.id()")
+    @CacheEvict(cacheNames = CacheNames.CATEGORIES, key = CacheNames.ALL)
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
         if (categoryRepository.existsByName(request.name())) {
@@ -40,7 +47,13 @@ public class CategoryService {
         return categoryMapper.toResponse(saved);
     }
 
+    /** Books show their categories' names, so every cached book may hold the old name. */
     @Auditable(action = AuditAction.CATEGORY_UPDATE, target = "#id")
+    @Caching(
+            evict = {
+                @CacheEvict(cacheNames = CacheNames.CATEGORIES, key = CacheNames.ALL),
+                @CacheEvict(cacheNames = CacheNames.BOOKS, allEntries = true)
+            })
     @Transactional
     public CategoryResponse update(Long id, CategoryRequest request) {
         Category category = getCategory(id);
@@ -55,6 +68,7 @@ public class CategoryService {
     }
 
     @Auditable(action = AuditAction.CATEGORY_DELETE, target = "#id")
+    @CacheEvict(cacheNames = CacheNames.CATEGORIES, key = CacheNames.ALL)
     @Transactional
     public void delete(Long id) {
         if (!categoryRepository.existsById(id)) {

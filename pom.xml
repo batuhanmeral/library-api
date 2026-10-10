@@ -58,6 +58,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+		<!-- Spring's cache abstraction (@Cacheable, @CacheEvict) and Redis as the cache store.
+		     Lettuce is the Redis client. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
 		<!-- JJWT signs and verifies the access tokens. The code compiles against the API only;
 		     the implementation and its JSON support (Jackson 2, version from Spring Boot) are
 		     needed at runtime. -->

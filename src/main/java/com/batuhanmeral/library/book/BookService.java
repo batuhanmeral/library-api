@@ -14,6 +14,7 @@ import com.batuhanmeral.library.common.error.DuplicateResourceException;
 import com.batuhanmeral.library.common.error.InvalidQueryParameterException;
 import com.batuhanmeral.library.common.error.ResourceInUseException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
+import com.batuhanmeral.library.config.CacheNames;
 import com.batuhanmeral.library.loan.LoanRepository;
 import com.batuhanmeral.library.loan.LoanService;
 import java.util.HashSet;
@@ -21,6 +22,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -52,6 +55,12 @@ public class BookService {
                 .map(bookMapper::toResponse);
     }
 
+    /**
+     * Cached by id. A book that does not exist throws, and nothing is cached for it. The entry is a
+     * BookResponse, not the Book entity: a detached entity with lazy associations would fail to
+     * load them later, and the response is what the API returns anyway.
+     */
+    @Cacheable(cacheNames = CacheNames.BOOKS, key = "#id")
     public BookResponse findById(Long id) {
         return bookMapper.toResponse(getBook(id));
     }
@@ -87,6 +96,7 @@ public class BookService {
     }
 
     @Auditable(action = AuditAction.BOOK_UPDATE, target = "#id")
+    @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#id")
     @Transactional
     public BookResponse update(Long id, BookRequest request) {
         Book book = getBook(id);
@@ -101,6 +111,7 @@ public class BookService {
 
     /** Changes only the fields that were sent; see {@link BookPatchRequest}. */
     @Auditable(action = AuditAction.BOOK_UPDATE, target = "#id")
+    @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#id")
     @Transactional
     public BookResponse patch(Long id, BookPatchRequest request) {
         Book book = getBook(id);
@@ -126,6 +137,7 @@ public class BookService {
      * library's record of who had which book. Open loans get their own message.
      */
     @Auditable(action = AuditAction.BOOK_DELETE, target = "#id")
+    @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#id")
     @Transactional
     public void delete(Long id) {
         if (!bookRepository.existsById(id)) {

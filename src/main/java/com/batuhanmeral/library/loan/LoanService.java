@@ -7,6 +7,7 @@ import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.common.error.ErrorCode;
 import com.batuhanmeral.library.common.error.ForbiddenException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
+import com.batuhanmeral.library.config.CacheNames;
 import com.batuhanmeral.library.loan.dto.LoanRequest;
 import com.batuhanmeral.library.loan.dto.LoanResponse;
 import com.batuhanmeral.library.loan.dto.LoanSearchCriteria;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Lending and returning. Each public method is one transaction: everything it changes is saved
- * together or, when it throws a RuntimeException, not at all. The controller does not call borrow
- * and returnBook directly but through LoanFacade, which runs them again when they lose a race.
+ * together or, when it throws a RuntimeException, not at all. Both change the book's available
+ * copies, so both drop the book's cache entry (GET /books/{id}). The controller does not call
+ * borrow and returnBook directly but through LoanFacade, which runs them again when they lose a
+ * race.
  */
 @Service
 @RequiredArgsConstructor
@@ -63,6 +67,7 @@ public class LoanService {
      * not checked against the database: one issued before the user's role changed is still
      * accepted, so the role is checked here again, as the database has it now.
      */
+    @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#request.bookId()")
     @Transactional
     public LoanResponse borrow(Long memberId, LoanRequest request) {
         User member =
@@ -107,7 +112,12 @@ public class LoanService {
         return loanMapper.toResponse(loan);
     }
 
-    /** The member who borrowed the book, or an admin (a book handed in at the desk). */
+    /**
+     * The member who borrowed the book, or an admin (a book handed in at the desk). The book's
+     * cache entry is dropped after the commit; its id comes from the result (#result), because the
+     * request names only the loan.
+     */
+    @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#result.book().id()")
     @Transactional
     public LoanResponse returnBook(Long loanId, AuthenticatedUser caller) {
         Loan loan = getLoan(loanId);

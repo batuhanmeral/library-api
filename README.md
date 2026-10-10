@@ -123,6 +123,12 @@ Borrow a copy as a member with `POST /loans` and `{"bookId": 1}`; the borrower i
 
 With the `dev` profile, a demo member (`member@example.com`, phone `+1 555 555 0100`, a number reserved for fiction) is created at startup for the overdue reminders. It has no usable password; register your own member to borrow books.
 
+### Caching
+
+`GET /books/{id}` and `GET /categories` are cached in Redis. A change made through the API (updating or deleting a book, borrowing or returning it, renaming its author or a category, any change of a category) removes the affected entries once it is saved, so the next read gets the new data. Entries also expire after 10 minutes (books) and 1 hour (the category list). If Redis is down, requests are still answered from the database; the log shows a warning for each failed cache access.
+
+Measured on a laptop against the local PostgreSQL and Redis containers, 100 requests each after a warm-up: `GET /books/{id}` took 1.9 ms on average with the cache and 4.0 ms without it (95th percentile 2.7 ms and 4.6 ms); the list of 50 categories took 1.3 ms and 2.6 ms (95th percentile 1.9 ms and 3.8 ms).
+
 ### Notifications and the nightly overdue check
 
 - After a loan or a return is saved, the member gets a confirmation email.
@@ -172,6 +178,9 @@ library:
     user-agent: "library-api (Spring Boot learning project)"
   logging:
     slow-call-threshold: 500ms    # service calls at least this long are logged as warnings
+  cache:
+    books-ttl: 10m                # how long a cached book lives
+    categories-ttl: 1h            # how long the cached category list lives
   security:
     jwt:
       expiration: 1h              # how long a token is accepted
@@ -182,7 +191,7 @@ The token signing key (`JWT_SECRET`) and the administrator account (`ADMIN_EMAIL
 
 They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or invalid (a limit below 1, an unknown time zone).
 
-Data is stored in PostgreSQL.
+Data is stored in PostgreSQL; Redis holds the cache.
 
 ## Errors
 
@@ -231,11 +240,11 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 ## Requirements
 
 - JDK 21 or newer. Maven is not needed; the Maven Wrapper (`./mvnw`) downloads it.
-- Docker with Docker Compose, for the PostgreSQL database. The tests do not need it.
+- Docker with Docker Compose, for PostgreSQL and Redis. The tests do not need it.
 
 ## Run
 
-Copy the example settings and fill in `.env`: a database password, a token signing key (`JWT_SECRET`, the output of `openssl rand -base64 32`; the application does not start with the placeholder) and the administrator's email and password. Then start PostgreSQL and the application:
+Copy the example settings and fill in `.env`: a database password, a Redis password, a token signing key (`JWT_SECRET`, the output of `openssl rand -base64 32`; the application does not start with the placeholder) and the administrator's email and password. Then start PostgreSQL and the application:
 
 ```bash
 cp .env.example .env
@@ -243,14 +252,15 @@ docker compose up -d --wait
 ./mvnw spring-boot:run
 ```
 
-`./mvnw spring-boot:run` uses the `dev` profile: it connects to the database from `docker-compose.yml` on `localhost:5434` (`POSTGRES_PORT` in `.env`; change it if the port is busy) and logs SQL statements. The schema is created and updated by Flyway at startup. `docker compose down` stops the database and keeps the data; `docker compose down -v` deletes it too.
+`./mvnw spring-boot:run` uses the `dev` profile: it connects to the database from `docker-compose.yml` on `localhost:5434` (`POSTGRES_PORT` in `.env`; change it if the port is busy) and to Redis on `localhost:6380` (`REDIS_PORT`), and logs SQL statements. The schema is created and updated by Flyway at startup. `docker compose down` stops the database and keeps the data; `docker compose down -v` deletes it too.
 
-To run the packaged application elsewhere, use the `prod` profile and pass the connection and the signing key as environment variables. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` too on the first start to create the administrator:
+To run the packaged application elsewhere, use the `prod` profile and pass the connections and the signing key as environment variables (`REDIS_PORT` defaults to 6379). Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` too on the first start to create the administrator:
 
 ```bash
 ./mvnw package
 SPRING_PROFILES_ACTIVE=prod DB_URL=jdbc:postgresql://db-host:5432/library \
-  DB_USERNAME=library DB_PASSWORD=... JWT_SECRET=... java -jar target/library-api-0.0.1-SNAPSHOT.jar
+  DB_USERNAME=library DB_PASSWORD=... REDIS_HOST=redis-host REDIS_PASSWORD=... \
+  JWT_SECRET=... java -jar target/library-api-0.0.1-SNAPSHOT.jar
 ```
 
 The API listens on `http://localhost:8080/api/v1`. Try it as the administrator from `.env`:
@@ -265,14 +275,14 @@ curl -i -X POST http://localhost:8080/api/v1/categories \
 curl http://localhost:8080/api/v1/categories
 ```
 
-To look at the database: `docker compose exec postgres psql -U library library`.
+To look at the database: `docker compose exec postgres psql -U library library`. To look at the cache: `docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --scan'` lists the keys (`books::7`, `categories::all`); `GET books::7` shows an entry as JSON.
 
 A Postman collection and a local environment are in [postman/](postman/). Import both, select the "library-api local" environment and set `adminEmail` and `adminPassword` there to the values in `.env`. Run the "Auth" folder first: it logs in as the administrator, registers a new member, logs in as that member and saves both tokens in the environment, which the other folders send. The "Loans" folder borrows as that member; the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
 
 ## Test
 
 ```bash
-./mvnw verify            # compile, run the tests (in-memory H2) and check code format
+./mvnw verify            # compile, run the tests (in-memory H2, no Redis) and check code format
 ./mvnw spotless:apply    # fix code format
 ```
 

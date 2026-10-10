@@ -542,7 +542,8 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/categories"
+            "url": "{{baseUrl}}/categories",
+            "description": "The whole list is one cache entry in Redis (`categories::all`); creating, renaming or deleting a category removes it."
           }
         },
         {
@@ -1187,7 +1188,8 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/books/{{bookId}}"
+            "url": "{{baseUrl}}/books/{{bookId}}",
+            "description": "Cached in Redis. Send it twice: the second answer comes from the cache and runs no SQL (the dev log shows the statements of the first only). Updating, deleting, borrowing or returning the book removes the entry."
           }
         },
         {

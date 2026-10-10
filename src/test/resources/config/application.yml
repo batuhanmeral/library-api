@@ -1,6 +1,11 @@
 # Test settings, layered over src/main/resources/application.yml: Spring Boot
 # reads both, and classpath:/config/ wins over classpath:/. Only the tests have
 # this file on their classpath.
+spring:
+  cache:
+    # No cache: a test never reads an entry another test left behind. CachingTest
+    # turns on an in-memory cache for itself.
+    type: none
 library:
   scheduling:
     # Scheduled jobs do not start by themselves in tests; a test runs the job

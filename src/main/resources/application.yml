@@ -22,10 +22,25 @@ spring:
       # (warning HHH90003004). Fail instead, so such a query never ships.
       hibernate.query.fail_on_pagination_over_collection_fetch: true
   data:
+    redis:
+      # Give up quickly on a Redis that does not answer: the request then reads
+      # from the database instead (CacheConfig.errorHandler).
+      connect-timeout: 500ms
+      timeout: 500ms
+      repositories:
+        # Redis is only a cache here; do not look for Spring Data Redis repositories.
+        enabled: false
     web:
       pageable:
         # ?size=500 is served as a page of 100. The default size is 20.
         max-page-size: 100
+  cache:
+    # @Cacheable results are stored in Redis (CacheConfig). Tests use none or an
+    # in-memory map.
+    type: redis
+    redis:
+      # A method that returns null is not cached (ours never do).
+      cache-null-values: false
   task:
     # The executor behind @Async (POST /admin/jobs/overdue-check). Two threads,
     # up to four when ten tasks are already waiting; more are refused.
@@ -69,6 +84,11 @@ library:
       cron: "0 0 2 * * *"
       # Members per transaction.
       batch-size: 100
+  cache:
+    # Every change through the API drops the affected entries at once; these only
+    # limit how long an entry can stay wrong after a change made another way.
+    books-ttl: 10m
+    categories-ttl: 1h
   logging:
     # A service call that takes at least this long is logged as a warning
     # (ExecutionTimeAspect). Shorter calls are logged at DEBUG.

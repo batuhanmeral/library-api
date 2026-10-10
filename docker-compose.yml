@@ -1,4 +1,4 @@
-# Local PostgreSQL for the dev profile. Values come from .env (copy .env.example).
+# Local PostgreSQL and Redis for the dev profile. Values come from .env (copy .env.example).
 #   docker compose up -d      start in the background
 #   docker compose down       stop; the data stays in the volume
 #   docker compose down -v    stop and delete the data
@@ -19,6 +19,37 @@ services:
     healthcheck:
       # $$ escapes Compose interpolation; the variables are read inside the container.
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # The cache (@Cacheable). Nothing in it needs to survive a restart, so it keeps
+  # no data on disk; when it is full, the least recently used entries go first.
+  redis:
+    image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    # Run as the image's unprivileged "redis" user. The image drops root by itself
+    # only when started as "redis-server ...", not through "sh -c" as here.
+    user: redis
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Nothing is written to disk, so the file system can be read-only.
+    read_only: true
+    tmpfs: [/data]
+    # The password is read from the environment inside the container ($$ escapes
+    # Compose interpolation), so it does not appear in the compose file.
+    command:
+      - sh
+      - -c
+      - >-
+        exec redis-server --requirepass "$$REDIS_PASSWORD"
+        --save "" --appendonly no
+        --maxmemory 64mb --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 10
