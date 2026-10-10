@@ -2,6 +2,8 @@ package com.batuhanmeral.library.category;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,8 @@ class CategoryApiIntegrationTest {
     private static final String CATEGORIES = "/api/v1/categories";
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Autowired private CategoryRepository categoryRepository;
 
@@ -136,14 +140,21 @@ class CategoryApiIntegrationTest {
     void deleteReturns204AndRemovesTheCategory() {
         long id = idOf(post("{\"name\": \"Science\"}"));
 
-        assertThat(mvc.delete().uri(CATEGORIES + "/{id}", id)).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(
+                        mvc.delete()
+                                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                                .uri(CATEGORIES + "/{id}", id))
+                .hasStatus(HttpStatus.NO_CONTENT);
         assertThat(categoryRepository.existsById(id)).isFalse();
     }
 
     @Test
     void deleteReturns404ProblemWhenTheCategoryDoesNotExist() {
         assertProblem(
-                mvc.delete().uri(CATEGORIES + "/{id}", 9999).exchange(),
+                mvc.delete()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .uri(CATEGORIES + "/{id}", 9999)
+                        .exchange(),
                 HttpStatus.NOT_FOUND,
                 "RESOURCE_NOT_FOUND");
     }
@@ -186,6 +197,7 @@ class CategoryApiIntegrationTest {
     void validationMessagesAreInEnglishWhateverLanguageTheClientAsksFor() {
         MvcTestResult result =
                 mvc.post()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                         .uri(CATEGORIES)
                         .header(HttpHeaders.ACCEPT_LANGUAGE, "tr-TR")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -263,8 +275,10 @@ class CategoryApiIntegrationTest {
 
     @Test
     void unknownPathReturns404Problem() {
+        // A path below a public prefix reaches Spring MVC, which finds no handler. Other unknown
+        // paths are refused by the security rules first (SecurityRulesTest).
         assertProblem(
-                mvc.get().uri("/api/v1/does-not-exist").exchange(),
+                mvc.get().uri(CATEGORIES + "/1/does-not-exist").exchange(),
                 HttpStatus.NOT_FOUND,
                 "RESOURCE_NOT_FOUND");
     }
@@ -272,7 +286,10 @@ class CategoryApiIntegrationTest {
     @Test
     void unsupportedMethodReturns405Problem() {
         assertProblem(
-                mvc.delete().uri(CATEGORIES).exchange(),
+                mvc.delete()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .uri(CATEGORIES)
+                        .exchange(),
                 HttpStatus.METHOD_NOT_ALLOWED,
                 "METHOD_NOT_ALLOWED");
     }
@@ -281,6 +298,7 @@ class CategoryApiIntegrationTest {
     void unsupportedContentTypeReturns415Problem() {
         MvcTestResult result =
                 mvc.post()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                         .uri(CATEGORIES)
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("Science")
@@ -291,6 +309,7 @@ class CategoryApiIntegrationTest {
 
     private MvcTestResult post(String json) {
         return mvc.post()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                 .uri(CATEGORIES)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json)
@@ -299,6 +318,7 @@ class CategoryApiIntegrationTest {
 
     private MvcTestResult put(long id, String json) {
         return mvc.put()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                 .uri(CATEGORIES + "/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json)

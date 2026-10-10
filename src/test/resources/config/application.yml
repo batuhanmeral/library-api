@@ -10,3 +10,8 @@ library:
   # call that is not mocked fails at once instead of reaching the internet.
   open-library:
     base-url: http://127.0.0.1:1
+  security:
+    jwt:
+      # A dummy key for tests only: Base64 of 32 times "x". Every real environment
+      # has its own random JWT_SECRET.
+      secret: eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHg=

@@ -2,6 +2,8 @@ package com.batuhanmeral.library.common.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
@@ -26,6 +29,8 @@ class RequestLoggingTest {
     private static final String CATEGORIES = "/api/v1/categories";
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Test
     void everyResponseHasARequestId() {
@@ -87,6 +92,7 @@ class RequestLoggingTest {
     void aRequestWithoutAHandlerGetsAnIdButNoInterceptorLine(CapturedOutput output) {
         MvcTestResult result =
                 mvc.delete()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                         .uri(CATEGORIES)
                         .header(RequestIdFilter.HEADER, "logging-test-4")
                         .exchange();

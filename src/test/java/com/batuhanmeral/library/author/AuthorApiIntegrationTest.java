@@ -2,6 +2,8 @@ package com.batuhanmeral.library.author;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,6 +27,8 @@ class AuthorApiIntegrationTest {
     private static final String AUTHORS = "/api/v1/authors";
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -136,7 +141,11 @@ class AuthorApiIntegrationTest {
     void deleteReturns204AndRemovesTheAuthor() {
         long id = idOf(post(AUTHORS, "{\"name\": \"Tolkien\"}"));
 
-        assertThat(mvc.delete().uri(AUTHORS + "/{id}", id)).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(
+                        mvc.delete()
+                                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                                .uri(AUTHORS + "/{id}", id))
+                .hasStatus(HttpStatus.NO_CONTENT);
         assertThat(mvc.get().uri(AUTHORS + "/{id}", id)).hasStatus(HttpStatus.NOT_FOUND);
     }
 
@@ -147,7 +156,11 @@ class AuthorApiIntegrationTest {
                 "/api/v1/books",
                 "{\"title\": \"The Hobbit\", \"totalCopies\": 1, \"authorId\": " + id + "}");
 
-        MvcTestResult result = mvc.delete().uri(AUTHORS + "/{id}", id).exchange();
+        MvcTestResult result =
+                mvc.delete()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .uri(AUTHORS + "/{id}", id)
+                        .exchange();
 
         assertProblem(result, HttpStatus.CONFLICT, "RESOURCE_IN_USE");
         assertThat(result)
@@ -159,7 +172,10 @@ class AuthorApiIntegrationTest {
     @Test
     void deleteReturns404WhenTheAuthorDoesNotExist() {
         assertProblem(
-                mvc.delete().uri(AUTHORS + "/{id}", 9999).exchange(),
+                mvc.delete()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .uri(AUTHORS + "/{id}", 9999)
+                        .exchange(),
                 HttpStatus.NOT_FOUND,
                 "RESOURCE_NOT_FOUND");
     }
@@ -195,11 +211,17 @@ class AuthorApiIntegrationTest {
     }
 
     private MvcTestResult post(String uri, String json) {
-        return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+        return mvc.post()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                .uri(uri)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .exchange();
     }
 
     private MvcTestResult put(long id, String json) {
         return mvc.put()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                 .uri(AUTHORS + "/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json)

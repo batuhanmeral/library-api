@@ -29,6 +29,14 @@ public enum ErrorCode {
     EXTERNAL_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     REQUEST_REJECTED(HttpStatus.BAD_REQUEST),
+    /** No token where one is needed. */
+    AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED),
+    /** A token was sent but is malformed, forged or expired. */
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED),
+    /** Login with a wrong password or an address that has no account. */
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED),
+    /** A valid token whose user may not do this. */
+    ACCESS_DENIED(HttpStatus.FORBIDDEN),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final HttpStatus status;
@@ -45,6 +53,8 @@ public enum ErrorCode {
     static ErrorCode forStatus(HttpStatusCode status) {
         return switch (status.value()) {
             case 400 -> MALFORMED_REQUEST;
+            case 401 -> AUTHENTICATION_REQUIRED;
+            case 403 -> ACCESS_DENIED;
             case 404 -> RESOURCE_NOT_FOUND;
             case 405 -> METHOD_NOT_ALLOWED;
             case 415 -> UNSUPPORTED_MEDIA_TYPE;

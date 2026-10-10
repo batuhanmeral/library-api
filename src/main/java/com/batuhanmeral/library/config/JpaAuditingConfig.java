@@ -1,6 +1,6 @@
 package com.batuhanmeral.library.config;
 
-import com.batuhanmeral.library.common.audit.SystemAuditorAware;
+import com.batuhanmeral.library.common.audit.SecurityAuditorAware;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -20,7 +20,7 @@ public class JpaAuditingConfig {
 
     @Bean
     AuditorAware<String> auditorAware() {
-        return new SystemAuditorAware();
+        return new SecurityAuditorAware();
     }
 
     /**

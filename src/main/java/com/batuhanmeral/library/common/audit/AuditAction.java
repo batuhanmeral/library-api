@@ -20,5 +20,12 @@ public enum AuditAction {
     /** Target: the loan. */
     LOAN_RETURN,
     /** No target. */
-    OVERDUE_CHECK_START
+    OVERDUE_CHECK_START,
+    /** Target: the new user. The actor is "system": nobody is logged in yet. */
+    USER_REGISTER,
+    /**
+     * No target and actor "system": the address tried is personal data and may belong to nobody.
+     * Failed logins are what matters here; the request id leads to the rest of the request.
+     */
+    LOGIN
 }

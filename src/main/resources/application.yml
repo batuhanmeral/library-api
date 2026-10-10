@@ -73,6 +73,14 @@ library:
     # A service call that takes at least this long is logged as a warning
     # (ExecutionTimeAspect). Shorter calls are logged at DEBUG.
     slow-call-threshold: 500ms
+  security:
+    jwt:
+      # The signing key (secret) comes from the environment: JWT_SECRET in the dev
+      # and prod profiles. Without it the application does not start.
+      issuer: library-api
+      # A stolen token works until it expires; a short life limits the damage.
+      # There are no refresh tokens: the client logs in again.
+      expiration: 1h
   # Open Library (https://openlibrary.org), asked for the details of a book
   # that is added with an ISBN. Bound to OpenLibraryProperties.
   open-library:

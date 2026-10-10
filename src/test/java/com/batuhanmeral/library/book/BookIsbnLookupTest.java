@@ -8,6 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.book.openlibrary.OpenLibraryBook;
 import com.batuhanmeral.library.book.openlibrary.OpenLibraryClient;
 import com.jayway.jsonpath.JsonPath;
@@ -23,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,6 +53,8 @@ class BookIsbnLookupTest {
             new OpenLibraryBook("Dune", "A desert planet.", 1987, 535);
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -233,6 +238,7 @@ class BookIsbnLookupTest {
 
         MvcTestResult result =
                 mvc.put()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                         .uri(BOOKS + "/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
@@ -284,7 +290,12 @@ class BookIsbnLookupTest {
     }
 
     private MvcTestResult post(String uri, String json) {
-        return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+        return mvc.post()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                .uri(uri)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .exchange();
     }
 
     private static long idOf(MvcTestResult result) {

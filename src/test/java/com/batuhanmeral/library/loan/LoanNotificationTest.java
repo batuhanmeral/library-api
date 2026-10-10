@@ -9,6 +9,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.notification.EmailNotificationService;
 import com.batuhanmeral.library.notification.Recipient;
 import com.batuhanmeral.library.user.Role;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,6 +45,8 @@ class LoanNotificationTest {
     private static final Recipient ADA = new Recipient("ada@example.com", null);
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -87,7 +92,10 @@ class LoanNotificationTest {
     void aReturnSendsAConfirmationToo() {
         long loanId = idOf(borrow(createBook("Dune", 1)));
 
-        mvc.post().uri("/api/v1/loans/{id}/return", loanId).exchange();
+        mvc.post()
+                .uri("/api/v1/loans/{id}/return", loanId)
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, memberId))
+                .exchange();
 
         verify(email).send(eq(ADA), contains("You returned \"Dune\""));
         verify(email, times(2)).send(any(), anyString());
@@ -122,8 +130,12 @@ class LoanNotificationTest {
     }
 
     private MvcTestResult borrow(long bookId) {
-        return post(
-                "/api/v1/loans", "{\"bookId\": %d, \"memberId\": %d}".formatted(bookId, memberId));
+        return mvc.post()
+                .uri("/api/v1/loans")
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, memberId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"bookId\": %d}".formatted(bookId))
+                .exchange();
     }
 
     private long createBook(String title, int copies) {
@@ -135,7 +147,12 @@ class LoanNotificationTest {
     }
 
     private MvcTestResult post(String uri, String json) {
-        return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+        return mvc.post()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                .uri(uri)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .exchange();
     }
 
     private static long idOf(MvcTestResult result) {

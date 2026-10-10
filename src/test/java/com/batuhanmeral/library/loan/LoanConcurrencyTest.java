@@ -117,8 +117,8 @@ class LoanConcurrencyTest {
     @Test
     void concurrentBorrowsOfDifferentBooksCannotPassTheLoanLimit() throws Exception {
         // Two open loans; the limit is 3. Different books, so Book.version does not help here.
-        loanService.borrow(new LoanRequest(saveBook("Dune Messiah"), firstMember));
-        loanService.borrow(new LoanRequest(saveBook("Children of Dune"), firstMember));
+        loanService.borrow(firstMember, new LoanRequest(saveBook("Dune Messiah")));
+        loanService.borrow(firstMember, new LoanRequest(saveBook("Children of Dune")));
         long third = saveBook("God Emperor of Dune");
         long fourth = saveBook("Heretics of Dune");
         CountDownLatch firstHasBorrowed = new CountDownLatch(1);
@@ -131,7 +131,7 @@ class LoanConcurrencyTest {
                     executor.submit(() -> {
                         new TransactionTemplate(transactionManager)
                                 .executeWithoutResult(status -> {
-                                    loanService.borrow(new LoanRequest(third, firstMember));
+                                    loanService.borrow(firstMember, new LoanRequest(third));
                                     firstHasBorrowed.countDown();
                                     sleep(1000);
                                 });
@@ -141,7 +141,7 @@ class LoanConcurrencyTest {
                     executor.submit(() -> {
                         firstHasBorrowed.await(10, TimeUnit.SECONDS);
                         try {
-                            loanService.borrow(new LoanRequest(fourth, firstMember));
+                            loanService.borrow(firstMember, new LoanRequest(fourth));
                             return "borrowed";
                         } catch (BusinessRuleException e) {
                             return e.getErrorCode().name();
@@ -211,7 +211,7 @@ class LoanConcurrencyTest {
                 futures.add(
                         executor.submit(() -> {
                             try {
-                                loanFacade.borrow(new LoanRequest(bookId, memberId));
+                                loanFacade.borrow(memberId, new LoanRequest(bookId));
                                 return "borrowed";
                             } catch (BusinessRuleException e) {
                                 return e.getErrorCode().name();
@@ -267,7 +267,7 @@ class LoanConcurrencyTest {
         return () -> {
             try {
                 transaction.executeWithoutResult(status -> {
-                    loanService.borrow(new LoanRequest(bookId, memberId));
+                    loanService.borrow(memberId, new LoanRequest(bookId));
                     await(barrier);
                 });
                 return "borrowed";

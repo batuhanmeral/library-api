@@ -1,9 +1,11 @@
 package com.batuhanmeral.library.loan;
 
+import com.batuhanmeral.library.auth.AuthenticatedUser;
 import com.batuhanmeral.library.book.Book;
 import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.common.error.ErrorCode;
+import com.batuhanmeral.library.common.error.ForbiddenException;
 import com.batuhanmeral.library.common.error.ResourceNotFoundException;
 import com.batuhanmeral.library.loan.dto.LoanRequest;
 import com.batuhanmeral.library.loan.dto.LoanResponse;
@@ -56,14 +58,17 @@ public class LoanService {
      *       committed and then counts its loan. The same lock keeps one member from taking two
      *       copies of one book with two requests at once.
      * </ul>
+     *
+     * <p>The member comes from the token. SecurityConfig lets only MEMBER tokens in, but a token is
+     * not checked against the database: one issued before the user's role changed is still
+     * accepted, so the role is checked here again, as the database has it now.
      */
     @Transactional
-    public LoanResponse borrow(LoanRequest request) {
+    public LoanResponse borrow(Long memberId, LoanRequest request) {
         User member =
                 userRepository
-                        .findLockedById(request.memberId())
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException("Member", request.memberId()));
+                        .findLockedById(memberId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Member", memberId));
         if (member.getRole() != Role.MEMBER) {
             throw new BusinessRuleException(
                     ErrorCode.NOT_A_MEMBER, "Only members can borrow books.");
@@ -102,9 +107,11 @@ public class LoanService {
         return loanMapper.toResponse(loan);
     }
 
+    /** The member who borrowed the book, or an admin (a book handed in at the desk). */
     @Transactional
-    public LoanResponse returnBook(Long loanId) {
+    public LoanResponse returnBook(Long loanId, AuthenticatedUser caller) {
         Loan loan = getLoan(loanId);
+        checkAccess(loan, caller);
         loan.markReturned(LocalDate.now(clock));
         loan.getBook().returnCopy();
         // Write now: the response shows the new updatedAt, and a conflicting change of the book
@@ -119,14 +126,27 @@ public class LoanService {
         return loanMapper.toResponse(loan);
     }
 
-    public LoanResponse findById(Long id) {
-        return loanMapper.toResponse(getLoan(id));
+    public LoanResponse findById(Long id, AuthenticatedUser caller) {
+        Loan loan = getLoan(id);
+        checkAccess(loan, caller);
+        return loanMapper.toResponse(loan);
     }
 
     public Page<LoanResponse> search(LoanSearchCriteria criteria, Pageable pageable) {
         return loanRepository
                 .findAll(LoanSpecifications.matching(criteria), pageable)
                 .map(loanMapper::toResponse);
+    }
+
+    /**
+     * A member may see and return only their own loans; an admin any loan. This rule needs the
+     * loan's member, which only the database knows, so it lives here and not in SecurityConfig. 403
+     * rather than 404 tells the caller that the loan exists; ids are not secret here.
+     */
+    private static void checkAccess(Loan loan, AuthenticatedUser caller) {
+        if (!caller.isAdmin() && !loan.getMember().getId().equals(caller.id())) {
+            throw new ForbiddenException("This loan belongs to another member.");
+        }
     }
 
     private Loan getLoan(Long id) {

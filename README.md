@@ -22,10 +22,12 @@ Work in progress. Available now, under `/api/v1`:
 
 | Resource | Endpoints |
 |---|---|
+| Auth | `POST /auth/register`, `POST /auth/login` |
+| Users | `GET /users/me`, `GET /users` |
 | Categories | `GET /categories`, `GET /categories/{id}`, `POST /categories`, `PUT /categories/{id}`, `DELETE /categories/{id}` |
 | Authors | `GET /authors`, `GET /authors/{id}`, `GET /authors/{id}/books`, `POST /authors`, `PUT /authors/{id}`, `DELETE /authors/{id}` |
 | Books | `GET /books`, `GET /books/{id}`, `POST /books`, `PUT /books/{id}`, `PATCH /books/{id}`, `DELETE /books/{id}` |
-| Loans | `POST /loans`, `POST /loans/{id}/return`, `GET /loans/{id}`, `GET /loans` |
+| Loans | `POST /loans`, `POST /loans/{id}/return`, `GET /loans/me`, `GET /loans/{id}`, `GET /loans` |
 | Jobs | `POST /admin/jobs/overdue-check` |
 
 - Category names are unique, up to 100 characters; descriptions are up to 500 characters.
@@ -34,6 +36,32 @@ Work in progress. Available now, under `/api/v1`:
 - `PUT /books/{id}` replaces the whole book; `PATCH /books/{id}` changes only the fields that are sent. A field cannot be cleared with `PATCH` (a `null` value is treated as not sent). A book can have at most 20 categories.
 - An author who has books, a category that books use, or a book that has loans cannot be deleted.
 - Every response has `createdAt` and `updatedAt` timestamps.
+
+### Sign-in and permissions
+
+Register as a member, log in, and send the token with every request:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' \
+  -d '{"email": "ada@example.com", "password": "correct horse", "fullName": "Ada Lovelace"}'
+curl -X POST http://localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email": "ada@example.com", "password": "correct horse"}'
+# {"accessToken": "eyJ...", "tokenType": "Bearer", "expiresIn": 3600}
+curl http://localhost:8080/api/v1/users/me -H 'Authorization: Bearer eyJ...'
+```
+
+- Registration always creates a member. The password needs at least 8 characters and at most 72 bytes; only a BCrypt hash of it is stored. Email addresses are not case-sensitive, and an address can have one account. An optional `phone` in international form (`+905551234567`) receives the overdue reminders.
+- A token is valid for one hour; then log in again. There is no logout: a token stays valid until it expires.
+- The administrator account is created at startup from `ADMIN_EMAIL` and `ADMIN_PASSWORD` (see Run). An existing administrator with that address is never changed; if the address belongs to a member, the application does not start.
+- Failed logins are written to the audit log (`action=LOGIN ... outcome=FAILURE`), without the address that was tried. There is no limit on login attempts yet.
+
+| Who | May |
+|---|---|
+| Anyone | read categories, authors and books; register; log in |
+| Member | everything above; borrow books; see and return their own loans (`GET /loans/me`); `GET /users/me` |
+| Administrator | everything above except borrowing; create, change and delete categories, authors and books; see and return any loan; list all loans and users; start the overdue check |
+
+Without a token where one is needed the answer is `401 AUTHENTICATION_REQUIRED`; with a malformed, forged or expired token it is `401 INVALID_TOKEN`, also on endpoints that need none; with a token whose user may not do it, `403 ACCESS_DENIED`. Paths that are not part of the API are refused the same way.
 
 ### Paging, sorting and search
 
@@ -65,7 +93,7 @@ The category list is not paged.
 
 ```bash
 curl -i -X POST http://localhost:8080/api/v1/books \
-  -H 'Content-Type: application/json' \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d '{"isbn": "9780441172719", "totalCopies": 2, "authorId": 1}'
 ```
 
@@ -82,7 +110,9 @@ This needs internet access to `openlibrary.org`. The tests never use the network
 
 ### Loans
 
-Borrow a copy with `POST /loans` and `{"bookId": 1, "memberId": 1}`; the loan is due 14 days later. Return it with `POST /loans/{id}/return`. `GET /loans` is paged (newest first) and takes optional `status` (`ACTIVE`, `OVERDUE`, `RETURNED`) and `memberId` filters; it can be sorted by `id`, `loanDate`, `dueDate`, `returnDate` and `createdAt`.
+Borrow a copy as a member with `POST /loans` and `{"bookId": 1}`; the borrower is the user of the token, and the loan is due 14 days later. Return it with `POST /loans/{id}/return`. `GET /loans/me` lists the member's own loans, `GET /loans` (administrators) everybody's; both are paged (newest first), take an optional `status` filter (`ACTIVE`, `OVERDUE`, `RETURNED`) and can be sorted by `id`, `loanDate`, `dueDate`, `returnDate` and `createdAt`. `GET /loans` also filters by `memberId`.
+
+- A member can see and return only their own loans (`403 ACCESS_DENIED` for another member's); an administrator can see and return any loan.
 
 - Only members can borrow; an administrator cannot.
 - A book with no available copy cannot be borrowed. When several members borrow the same book at the same moment, the requests are retried as needed: each gets a copy while copies last, the others get `BOOK_NOT_AVAILABLE`.
@@ -91,13 +121,13 @@ Borrow a copy with `POST /loans` and `{"bookId": 1, "memberId": 1}`; the loan is
 - A member with a loan past its due date cannot borrow until it is returned.
 - `totalCopies` of a book cannot be set below the number of copies on loan.
 
-There are no user accounts yet: the member is sent in the request. With the `dev` profile, a demo member (`member@example.com`, phone `+1 555 555 0100`, a number reserved for fiction) is created at startup; on a new database its id is 1.
+With the `dev` profile, a demo member (`member@example.com`, phone `+1 555 555 0100`, a number reserved for fiction) is created at startup for the overdue reminders. It has no usable password; register your own member to borrow books.
 
 ### Notifications and the nightly overdue check
 
 - After a loan or a return is saved, the member gets a confirmation email.
 - Every night at 02:00 (Europe/Istanbul), active loans past their due date are marked `OVERDUE` and each member concerned gets one SMS reminder, if they have a phone number. Running the check again changes nothing.
-- `POST /admin/jobs/overdue-check` starts the same check at once and returns `202 Accepted` without waiting for it; while a run is going, another start gets `409 JOB_ALREADY_RUNNING`. Until sign-in exists, anyone can call it: do not expose the application publicly yet.
+- `POST /admin/jobs/overdue-check` starts the same check at once and returns `202 Accepted` without waiting for it; while a run is going, another start gets `409 JOB_ALREADY_RUNNING`. Only administrators can call it.
 
 Emails and SMS are not really sent; they are written to the application log, with the address shortened to its first letter and domain (`m***@example.com`) and the phone number to its last two digits (`***00`).
 
@@ -111,11 +141,13 @@ Emails and SMS are not really sent; they are written to the application log, wit
   ```
 
 - Each API call is logged with its method, path, status, duration and the controller method that served it. Query strings are not logged.
-- Changes are written to the `audit` logger, one line each: creating, updating and deleting categories, authors and books, borrowing and returning, starting the overdue check. A line has the action, the id of what was changed, who made the change (`system` until sign-in exists) and the outcome; a refused change names its error code:
+- Changes are written to the `audit` logger, one line each: creating, updating and deleting categories, authors and books, borrowing and returning, starting the overdue check, registering. A line has the action, the id of what was changed, who made the change (`user:<id>` of the token, or `system` for changes without one) and the outcome; a refused change names its error code:
 
   ```text
-  action=AUTHOR_DELETE target=3 actor=system outcome=FAILURE reason=RESOURCE_IN_USE
+  action=AUTHOR_DELETE target=3 actor=user:1 outcome=FAILURE reason=RESOURCE_IN_USE
   ```
+
+- The `createdBy` and `updatedBy` columns of catalogue and loan rows record the same `user:<id>`.
 
 - A service call that takes 500 ms or more is logged as a warning. With the `dev` profile the duration of every service call is logged.
 - With the `prod` profile, log lines are JSON objects in [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html); the request id is the `requestId` field.
@@ -140,7 +172,13 @@ library:
     user-agent: "library-api (Spring Boot learning project)"
   logging:
     slow-call-threshold: 500ms    # service calls at least this long are logged as warnings
+  security:
+    jwt:
+      expiration: 1h              # how long a token is accepted
+      issuer: library-api
 ```
+
+The token signing key (`JWT_SECRET`) and the administrator account (`ADMIN_EMAIL`, `ADMIN_PASSWORD`) come from the environment; see Run.
 
 They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or invalid (a limit below 1, an unknown time zone).
 
@@ -166,9 +204,13 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `VALIDATION_FAILED` | 400 | A body field or a search filter is missing or invalid; `errors` lists each field |
 | `MALFORMED_REQUEST` | 400 | The body is not valid JSON or a path value has the wrong type |
 | `INVALID_PARAMETER` | 400 | A query parameter cannot be used: a sort field that is not allowed, or `yearFrom` after `yearTo` |
+| `AUTHENTICATION_REQUIRED` | 401 | No token where one is needed |
+| `INVALID_TOKEN` | 401 | The token is malformed, signed with another key or expired |
+| `INVALID_CREDENTIALS` | 401 | Login with a wrong password or an unknown email address |
+| `ACCESS_DENIED` | 403 | The user of the token may not do this, for example a member changing a book or reading another member's loan |
 | `RESOURCE_NOT_FOUND` | 404 | No resource with that id (also an `authorId` or `categoryIds` entry in a book), or no such path |
 | `METHOD_NOT_ALLOWED` | 405 | The path does not support the HTTP method |
-| `DUPLICATE_RESOURCE` | 409 | The name or ISBN is already taken |
+| `DUPLICATE_RESOURCE` | 409 | The name, ISBN or email address is already taken |
 | `RESOURCE_IN_USE` | 409 | The author has books, books use the category, or the book has loans |
 | `DATA_CONFLICT` | 409 | The change conflicts with existing data |
 | `CONCURRENT_UPDATE` | 409 | Another request changed the same data at the same time, even after retries; reload and try again |
@@ -179,11 +221,11 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `JOB_ALREADY_RUNNING` | 409 | The overdue check is already running |
 | `LOAN_LIMIT_REACHED` | 422 | The member already has the most open loans allowed |
 | `MEMBER_HAS_OVERDUE_LOAN` | 422 | The member has a loan past its due date |
-| `NOT_A_MEMBER` | 422 | The borrower is not a member (for example an administrator) |
+| `NOT_A_MEMBER` | 422 | The user of the token is no longer a member (the role changed after the token was issued) |
 | `ISBN_NOT_FOUND` | 422 | A new book has no title and Open Library does not know its ISBN |
 | `EXTERNAL_SERVICE_UNAVAILABLE` | 503 | A new book has no title and Open Library could not be reached; send the title or try again later |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
-| `REQUEST_REJECTED` | 4xx | Any other client error |
+| `REQUEST_REJECTED` | 400 | The request was refused before it reached the API: a `;` or an invalid encoding in the path, for example. Also any other client error (4xx) |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
 ## Requirements
@@ -193,7 +235,7 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 
 ## Run
 
-Copy the example settings, set a password in `.env`, start PostgreSQL and the application:
+Copy the example settings and fill in `.env`: a database password, a token signing key (`JWT_SECRET`, the output of `openssl rand -base64 32`; the application does not start with the placeholder) and the administrator's email and password. Then start PostgreSQL and the application:
 
 ```bash
 cp .env.example .env
@@ -203,26 +245,29 @@ docker compose up -d --wait
 
 `./mvnw spring-boot:run` uses the `dev` profile: it connects to the database from `docker-compose.yml` on `localhost:5434` (`POSTGRES_PORT` in `.env`; change it if the port is busy) and logs SQL statements. The schema is created and updated by Flyway at startup. `docker compose down` stops the database and keeps the data; `docker compose down -v` deletes it too.
 
-To run the packaged application elsewhere, use the `prod` profile and pass the connection as environment variables:
+To run the packaged application elsewhere, use the `prod` profile and pass the connection and the signing key as environment variables. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` too on the first start to create the administrator:
 
 ```bash
 ./mvnw package
 SPRING_PROFILES_ACTIVE=prod DB_URL=jdbc:postgresql://db-host:5432/library \
-  DB_USERNAME=library DB_PASSWORD=... java -jar target/library-api-0.0.1-SNAPSHOT.jar
+  DB_USERNAME=library DB_PASSWORD=... JWT_SECRET=... java -jar target/library-api-0.0.1-SNAPSHOT.jar
 ```
 
-The API listens on `http://localhost:8080/api/v1`. Try it:
+The API listens on `http://localhost:8080/api/v1`. Try it as the administrator from `.env`:
 
 ```bash
-curl -i -X POST http://localhost:8080/api/v1/categories \
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
+  -d '{"email": "admin@example.com", "password": "<ADMIN_PASSWORD from .env>"}' | jq -r .accessToken)
+curl -i -X POST http://localhost:8080/api/v1/categories \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d '{"name": "Science", "description": "Popular science books"}'
 curl http://localhost:8080/api/v1/categories
 ```
 
 To look at the database: `docker compose exec postgres psql -U library library`.
 
-A Postman collection and a local environment are in [postman/](postman/). Import both and select the "library-api local" environment. The "Loans" folder borrows with the demo member (`memberId` in the environment); the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
+A Postman collection and a local environment are in [postman/](postman/). Import both, select the "library-api local" environment and set `adminEmail` and `adminPassword` there to the values in `.env`. Run the "Auth" folder first: it logs in as the administrator, registers a new member, logs in as that member and saves both tokens in the environment, which the other folders send. The "Loans" folder borrows as that member; the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
 
 ## Test
 

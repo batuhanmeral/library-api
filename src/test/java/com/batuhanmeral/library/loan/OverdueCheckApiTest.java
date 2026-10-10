@@ -8,6 +8,8 @@ import static org.mockito.Mockito.doAnswer;
 
 import com.batuhanmeral.library.MutableClock;
 import com.batuhanmeral.library.MutableClockConfig;
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
 import com.batuhanmeral.library.book.Book;
@@ -28,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,6 +52,8 @@ class OverdueCheckApiTest {
     private static final String OVERDUE_CHECK = "/api/v1/admin/jobs/overdue-check";
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Autowired private OverdueLoanJob job;
 
@@ -101,7 +106,11 @@ class OverdueCheckApiTest {
                 .when(sms)
                 .send(any(), anyString());
 
-        MvcTestResult result = mvc.post().uri(OVERDUE_CHECK).exchange();
+        MvcTestResult result =
+                mvc.post()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .uri(OVERDUE_CHECK)
+                        .exchange();
 
         assertThat(result).hasStatus(HttpStatus.ACCEPTED);
         await().atMost(Duration.ofSeconds(10))
@@ -128,6 +137,7 @@ class OverdueCheckApiTest {
 
         MvcTestResult result =
                 mvc.post()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                         .uri(OVERDUE_CHECK)
                         .header(RequestIdFilter.HEADER, "overdue-check-1")
                         .exchange();
@@ -142,7 +152,11 @@ class OverdueCheckApiTest {
     void aSecondStartWhileTheCheckIsRunningIs409() {
         assertThat(job.tryClaim()).isTrue();
         try {
-            MvcTestResult result = mvc.post().uri(OVERDUE_CHECK).exchange();
+            MvcTestResult result =
+                    mvc.post()
+                            .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                            .uri(OVERDUE_CHECK)
+                            .exchange();
 
             assertThat(result)
                     .hasStatus(HttpStatus.CONFLICT)

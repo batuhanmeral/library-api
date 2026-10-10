@@ -1,5 +1,6 @@
 package com.batuhanmeral.library.common.error;
 
+import com.batuhanmeral.library.auth.InvalidTokenException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -11,6 +12,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.firewall.RequestRejectedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -63,6 +69,67 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 ErrorCode.CONCURRENT_UPDATE,
                 "The resource was changed by another request. Reload it and try again.",
                 request);
+    }
+
+    /**
+     * 401: no token where one is needed, a bad token, or a failed login. RFC 9110 asks a 401 to
+     * name the authentication scheme in WWW-Authenticate; RFC 6750 adds the error for a bad token.
+     * Most of these come from Spring Security's filters through SecurityErrorHandler; a failed
+     * login comes from AuthService.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<ProblemDetail> handleAuthentication(
+            AuthenticationException ex, HttpServletRequest request) {
+        if (ex instanceof InternalAuthenticationServiceException) {
+            // Not the client's credentials: the account could not be loaded (the database is
+            // down, for example). A 401 would tell the client to log in and hide the outage.
+            log.error("Authentication failed inside the server", ex);
+            return ResponseEntity.internalServerError()
+                    .body(
+                            problem(
+                                    ErrorCode.INTERNAL_ERROR,
+                                    "An unexpected error occurred.",
+                                    request));
+        }
+        ErrorCode code;
+        String detail;
+        String challenge = "Bearer";
+        if (ex instanceof InvalidTokenException) {
+            code = ErrorCode.INVALID_TOKEN;
+            detail = ex.getMessage();
+            challenge = "Bearer error=\"invalid_token\"";
+        } else if (ex instanceof BadCredentialsException) {
+            code = ErrorCode.INVALID_CREDENTIALS;
+            detail = "The email or password is wrong.";
+        } else {
+            code = ErrorCode.AUTHENTICATION_REQUIRED;
+            detail = "Log in and send the access token: Authorization: Bearer <token>.";
+        }
+        return ResponseEntity.status(code.status())
+                .header(HttpHeaders.WWW_AUTHENTICATE, challenge)
+                .body(problem(code, detail, request));
+    }
+
+    /** 403: a valid token whose user lacks the role a rule of SecurityConfig asks for. */
+    @ExceptionHandler(AccessDeniedException.class)
+    ProblemDetail handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return problem(ErrorCode.ACCESS_DENIED, "You do not have permission to do this.", request);
+    }
+
+    /**
+     * 400: Spring Security's firewall (StrictHttpFirewall) refused the request before anything else
+     * read it: a ";" or an encoded "/" in the path, "../", a header with control characters. The
+     * rejected path is left out of the answer and the log: it is what the firewall did not trust,
+     * and URI.create could not even parse some of them ("%zz").
+     */
+    @ExceptionHandler(RequestRejectedException.class)
+    ProblemDetail handleRequestRejected(RequestRejectedException ex) {
+        log.info("Request rejected by the firewall");
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(
+                        ErrorCode.REQUEST_REJECTED.status(), "The request was rejected.");
+        problem.setProperty(ERROR_CODE, ErrorCode.REQUEST_REJECTED.name());
+        return problem;
     }
 
     @ExceptionHandler(Exception.class)

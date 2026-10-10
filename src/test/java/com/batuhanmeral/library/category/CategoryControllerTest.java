@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  * failures that are hard to trigger through the real service.
  */
 @WebMvcTest(CategoryController.class)
+// The security filters are left out: these tests are about the error responses of the web layer.
+// Who may call what is tested with the whole application (SecurityRulesTest).
+@AutoConfigureMockMvc(addFilters = false)
 @ExtendWith(OutputCaptureExtension.class)
 class CategoryControllerTest {
 

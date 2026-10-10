@@ -2,8 +2,8 @@
 # ./mvnw spring-boot:run turns this profile on (see pom.xml).
 spring:
   config:
-    # Read POSTGRES_* from .env in the working directory, the same file Docker
-    # Compose reads. Real environment variables win over the file.
+    # Read POSTGRES_*, JWT_SECRET and ADMIN_* from .env in the working directory,
+    # the same file Docker Compose reads. Real environment variables win over the file.
     import: optional:file:.env[.properties]
   datasource:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5434}/${POSTGRES_DB}
@@ -12,6 +12,16 @@ spring:
   flyway:
     # Also run db/dev: data for trying the API locally (a demo member).
     locations: classpath:db/migration,classpath:db/dev
+
+library:
+  security:
+    jwt:
+      # Base64 of at least 32 random bytes, from .env: openssl rand -base64 32
+      secret: ${JWT_SECRET}
+    # Created at startup when no account has this address (AdminAccountInitializer).
+    admin:
+      email: ${ADMIN_EMAIL}
+      password: ${ADMIN_PASSWORD}
 
 logging:
   level:

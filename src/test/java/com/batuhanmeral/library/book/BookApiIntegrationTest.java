@@ -2,6 +2,8 @@ package com.batuhanmeral.library.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +29,8 @@ class BookApiIntegrationTest {
     private static final String BOOKS = "/api/v1/books";
 
     @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
 
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -475,7 +480,11 @@ class BookApiIntegrationTest {
     void deleteReturns204AndRemovesTheBook() {
         long id = idOf(createHobbit());
 
-        assertThat(mvc.delete().uri(BOOKS + "/{id}", id)).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(
+                        mvc.delete()
+                                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                                .uri(BOOKS + "/{id}", id))
+                .hasStatus(HttpStatus.NO_CONTENT);
         assertThat(mvc.get().uri(BOOKS + "/{id}", id)).hasStatus(HttpStatus.NOT_FOUND);
         assertThat(JdbcTestUtils.countRowsInTable(jdbcTemplate, "book_categories")).isZero();
     }
@@ -484,7 +493,11 @@ class BookApiIntegrationTest {
     void deletingACategoryUsedByABookReturns409() {
         createHobbit();
 
-        MvcTestResult result = mvc.delete().uri("/api/v1/categories/{id}", fantasyId).exchange();
+        MvcTestResult result =
+                mvc.delete()
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .uri("/api/v1/categories/{id}", fantasyId)
+                        .exchange();
 
         assertProblem(result, HttpStatus.CONFLICT, "RESOURCE_IN_USE");
         assertThat(result)
@@ -532,11 +545,17 @@ class BookApiIntegrationTest {
     }
 
     private MvcTestResult post(String uri, String json) {
-        return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+        return mvc.post()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                .uri(uri)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .exchange();
     }
 
     private MvcTestResult patch(long id, String json) {
         return mvc.patch()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                 .uri(BOOKS + "/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json)
@@ -545,6 +564,7 @@ class BookApiIntegrationTest {
 
     private MvcTestResult put(long id, String json) {
         return mvc.put()
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                 .uri(BOOKS + "/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json)

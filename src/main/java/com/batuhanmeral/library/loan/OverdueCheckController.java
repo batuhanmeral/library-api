@@ -10,10 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Starts the nightly overdue check by hand. Open to everyone until sign-in exists (step 10); then
- * it is for administrators only.
- */
+/** Starts the nightly overdue check by hand. Administrators only (SecurityConfig: /admin/**). */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/admin/jobs")

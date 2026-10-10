@@ -1,5 +1,6 @@
 package com.batuhanmeral.library.loan;
 
+import com.batuhanmeral.library.auth.AuthenticatedUser;
 import com.batuhanmeral.library.loan.dto.LoanRequest;
 import com.batuhanmeral.library.loan.dto.LoanResponse;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +39,8 @@ public class LoanFacade {
             multiplier = 2,
             jitter = 25,
             maxDelay = 500)
-    public LoanResponse borrow(LoanRequest request) {
-        return loanService.borrow(request);
+    public LoanResponse borrow(Long memberId, LoanRequest request) {
+        return loanService.borrow(memberId, request);
     }
 
     @Retryable(
@@ -49,7 +50,7 @@ public class LoanFacade {
             multiplier = 2,
             jitter = 25,
             maxDelay = 500)
-    public LoanResponse returnBook(Long loanId) {
-        return loanService.returnBook(loanId);
+    public LoanResponse returnBook(Long loanId, AuthenticatedUser caller) {
+        return loanService.returnBook(loanId, caller);
     }
 }

@@ -1,8 +1,9 @@
--- Development data, run only by the dev profile (spring.flyway.locations). There is
--- no registration yet (step 10), so this member is the one to borrow books with.
+-- Development data, run only by the dev profile (spring.flyway.locations): a member
+-- with an overdue-check phone number and loans to look at in the database.
 -- "R__" makes it repeatable: Flyway runs it again whenever the file changes, so it
--- inserts only what is missing. The password is not a BCrypt hash; nobody can log
--- in with this account.
+-- inserts only what is missing. The password is not a BCrypt hash, so nobody can log
+-- in with this account (the login answers 401); register a member of your own with
+-- POST /api/v1/auth/register to borrow books.
 insert into users (email, password, full_name, role, created_at, updated_at)
 select 'member@example.com', '!', 'Demo Member', 'MEMBER', current_timestamp, current_timestamp
 where not exists (select 1 from users where email = 'member@example.com');

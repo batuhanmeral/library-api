@@ -1,10 +1,426 @@
 {
   "info": {
     "name": "library-api",
-    "description": "Requests for the library management REST API. Select the \"library-api local\" environment before sending.",
+    "description": "Requests for the library management REST API. Select the \"library-api local\" environment before sending.\n\nRun the \"Auth\" folder first: it logs in as the administrator (adminEmail and adminPassword in the environment, the same as ADMIN_EMAIL and ADMIN_PASSWORD in .env), registers a new member and logs in as that member. The login requests save the tokens into the environment (adminToken, memberToken, and token for the last login). Every request sends \"Authorization: Bearer <token>\": the collection uses {{token}}, the catalogue and admin folders {{adminToken}}, the Loans folder {{memberToken}}.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
+    {
+      "name": "Auth",
+      "description": "Logs in and saves the tokens. Run it before the other folders.",
+      "item": [
+        {
+          "name": "Log in as the admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"A bearer token is returned\", () => {",
+                  "    pm.expect(body.tokenType).to.eql(\"Bearer\");",
+                  "    pm.expect(body.accessToken).to.be.a(\"string\");",
+                  "});",
+                  "// Saved for the other requests: they send it as \"Authorization: Bearer {{adminToken}}\".",
+                  "pm.environment.set(\"adminToken\", body.accessToken);",
+                  "pm.environment.set(\"token\", body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "The administrator is created at startup from ADMIN_EMAIL and ADMIN_PASSWORD in .env. Set adminEmail and adminPassword in the environment to the same values."
+          }
+        },
+        {
+          "name": "Register a member",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A new address on every run, so the collection can be run again.",
+                  "pm.environment.set(\"memberEmail\", `member-${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"The new user is a member and the password is not returned\", () => {",
+                  "    pm.expect(body.role).to.eql(\"MEMBER\");",
+                  "    pm.expect(body).to.not.have.property(\"password\");",
+                  "});",
+                  "pm.environment.set(\"memberId\", body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\",\n  \"fullName\": \"Ada Lovelace\",\n  \"phone\": \"+15555550142\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Registration always creates a MEMBER; a \"role\" field in the body is ignored. +1 555 555 01xx numbers are reserved for fiction."
+          }
+        },
+        {
+          "name": "Register with a taken email (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409 Conflict\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Error code is DUPLICATE_RESOURCE\", () => pm.expect(pm.response.json().errorCode).to.eql(\"DUPLICATE_RESOURCE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\",\n  \"fullName\": \"Someone Else\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Register with a short password (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400 Bad Request\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is VALIDATION_FAILED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"VALIDATION_FAILED\"));",
+                  "pm.test(\"The password field is named\", () => pm.expect(pm.response.json().errors[0].field).to.eql(\"password\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"short@example.com\",\n  \"password\": \"short\",\n  \"fullName\": \"Short\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Log in as the member",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"The token is valid for an hour\", () => pm.expect(body.expiresIn).to.eql(3600));",
+                  "pm.environment.set(\"memberToken\", body.accessToken);",
+                  "pm.environment.set(\"token\", body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Log in with a wrong password (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Error code is INVALID_CREDENTIALS\", () => pm.expect(pm.response.json().errorCode).to.eql(\"INVALID_CREDENTIALS\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"not the password\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "An unknown address gets exactly the same answer, so the login does not tell which addresses have accounts."
+          }
+        },
+        {
+          "name": "My profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"It is the member who logged in\", () => pm.expect(pm.response.json().email).to.eql(pm.environment.get(\"memberEmail\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/me",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{memberToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List users (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The page has users\", () => pm.expect(pm.response.json().totalElements).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users?page=0&size=20&sort=id,desc",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List users as a member (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403 Forbidden\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Error code is ACCESS_DENIED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{memberToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create a category without a token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Error code is AUTHENTICATION_REQUIRED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"AUTHENTICATION_REQUIRED\"));",
+                  "pm.test(\"The answer names the scheme\", () => pm.expect(pm.response.headers.get(\"WWW-Authenticate\")).to.eql(\"Bearer\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/categories",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"No token\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Create a category as a member (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403 Forbidden\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Error code is ACCESS_DENIED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/categories",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Member category\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{memberToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send a broken token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401 Unauthorized\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Error code is INVALID_TOKEN\", () => pm.expect(pm.response.json().errorCode).to.eql(\"INVALID_TOKEN\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/categories",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "not-a-token",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reading categories needs no token, but a token that is sent must be valid."
+          }
+        }
+      ]
+    },
     {
       "name": "Categories",
       "item": [
@@ -273,7 +689,17 @@
             "url": "{{baseUrl}}/categories/{{categoryId}}"
           }
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      }
     },
     {
       "name": "Authors",
@@ -388,7 +814,17 @@
             }
           }
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      }
     },
     {
       "name": "Books",
@@ -979,11 +1415,21 @@
             "url": "{{baseUrl}}/authors/{{authorId}}"
           }
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      }
     },
     {
       "name": "Loans",
-      "description": "Uses the demo member that the dev profile creates (memberId in the environment). Books with loans cannot be deleted, so each run leaves one author and one book behind.",
+      "description": "Borrows as the member registered in the Auth folder ({{memberToken}}); the catalogue changes in this folder use {{adminToken}}. Books with loans cannot be deleted, so each run leaves one author and one book behind.",
       "item": [
         {
           "name": "Create author for loans",
@@ -1011,6 +1457,16 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Frank Herbert\"\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -1040,6 +1496,16 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Dune\",\n  \"totalCopies\": 1,\n  \"authorId\": {{loanAuthorId}}\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -1074,7 +1540,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": {{memberId}}\n}"
+              "raw": "{\n  \"bookId\": {{loanBookId}}\n}"
             },
             "description": "After the commit, the application log shows the confirmation email with a masked address:\n\n`Email to m***@example.com: You borrowed \"Dune\" (loan 1). Please return it by ...`"
           }
@@ -1104,21 +1570,21 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": {{memberId}}\n}"
+              "raw": "{\n  \"bookId\": {{loanBookId}}\n}"
             },
             "description": "The member already has this book. Another member would get BOOK_NOT_AVAILABLE: the only copy is out."
           }
         },
         {
-          "name": "Borrow as an unknown member (404)",
+          "name": "Borrow as the admin (403)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 404 Not Found\", () => pm.response.to.have.status(404));",
-                  "pm.test(\"Error code is RESOURCE_NOT_FOUND\", () => pm.expect(pm.response.json().errorCode).to.eql(\"RESOURCE_NOT_FOUND\"));"
+                  "pm.test(\"Status is 403 Forbidden\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Error code is ACCESS_DENIED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"ACCESS_DENIED\"));"
                 ]
               }
             }
@@ -1134,8 +1600,19 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bookId\": {{loanBookId}},\n  \"memberId\": 999999\n}"
-            }
+              "raw": "{\n  \"bookId\": {{loanBookId}}\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Only members borrow. The borrower is always the user of the token; a memberId in the body is ignored."
           }
         },
         {
@@ -1158,7 +1635,7 @@
           }
         },
         {
-          "name": "List the member's active loans",
+          "name": "List my active loans",
           "event": [
             {
               "listen": "test",
@@ -1166,16 +1643,43 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Contains the new loan\", () => {",
-                  "    pm.expect(pm.response.json().content.map(l => l.id)).to.include(Number(pm.collectionVariables.get(\"loanId\")));",
-                  "});"
+                  "pm.test(\"Only my loans\", () => pm.response.json().content.forEach(loan => pm.expect(loan.member.id).to.eql(pm.environment.get(\"memberId\"))));"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/loans?memberId={{memberId}}&status=ACTIVE"
+            "url": "{{baseUrl}}/loans/me?status=ACTIVE"
+          }
+        },
+        {
+          "name": "List the member's active loans (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"One active loan\", () => pm.expect(pm.response.json().totalElements).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/loans?memberId={{memberId}}&status=ACTIVE",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1204,6 +1708,16 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"totalCopies\": 0\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -1223,7 +1737,17 @@
           ],
           "request": {
             "method": "DELETE",
-            "url": "{{baseUrl}}/books/{{loanBookId}}"
+            "url": "{{baseUrl}}/books/{{loanBookId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         },
         {
@@ -1281,14 +1805,34 @@
           ],
           "request": {
             "method": "DELETE",
-            "url": "{{baseUrl}}/books/{{loanBookId}}"
+            "url": "{{baseUrl}}/books/{{loanBookId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{memberToken}}",
+            "type": "string"
+          }
+        ]
+      }
     },
     {
       "name": "Admin jobs",
-      "description": "Starts the nightly overdue check by hand. Open to everyone until sign-in exists; then administrators only.",
+      "description": "Starts the nightly overdue check by hand. Administrators only.",
       "item": [
         {
           "name": "Start the overdue check (202)",
@@ -1352,9 +1896,29 @@
             }
           ]
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      }
     }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
   "variable": [
     {
       "key": "categoryId",
@@ -1387,6 +1951,10 @@
     {
       "key": "isbnBookId",
       "value": ""
+    },
+    {
+      "key": "memberPassword",
+      "value": "correct horse battery"
     }
   ]
 }

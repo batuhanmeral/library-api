@@ -2,6 +2,8 @@ package com.batuhanmeral.library.loan;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.user.Role;
 import com.batuhanmeral.library.user.User;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,10 +26,11 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * There is no endpoint for users yet (step 10), so members are saved with the repository. Loans
- * that should already exist (an overdue one, for example) are saved the same way. "Today" is read
- * from the application's clock: it is in the library's time zone, which may be a day ahead of or
- * behind the machine's.
+ * Members are saved with the repository and act with tokens the application's JwtService signs, as
+ * if they had logged in; the catalogue is set up with an admin token. Loans that should already
+ * exist (an overdue one, for example) are saved the same way. "Today" is read from the
+ * application's clock: it is in the library's time zone, which may be a day ahead of or behind the
+ * machine's.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -45,6 +49,8 @@ class LoanApiIntegrationTest {
     @Autowired private LoanRepository loanRepository;
 
     @Autowired private Clock clock;
+
+    @Autowired private JwtService jwt;
 
     private long authorId;
     private long memberId;
@@ -163,7 +169,10 @@ class LoanApiIntegrationTest {
     }
 
     @Test
-    void borrowReturns422WhenTheBorrowerIsNotAMember() {
+    void borrowReturns422WhenTheBorrowerIsNoLongerAMember() {
+        // An admin token cannot get here (403, see SecurityRulesTest). But a token is not read
+        // again from the database: one issued while the user was a member stays valid after the
+        // role changes, until it expires. The service checks the role the database has now.
         long bookId = createBook("Dune", 1);
         long adminId =
                 userRepository
@@ -200,7 +209,7 @@ class LoanApiIntegrationTest {
     }
 
     @Test
-    void borrowReturns404ForAnUnknownBookOrMemberAnd400ForMissingIds() {
+    void borrowReturns404ForAnUnknownBookOrMemberAnd400ForAMissingBookId() {
         long bookId = createBook("Dune", 1);
 
         MvcTestResult unknownMember = borrow(bookId, 9999);
@@ -211,13 +220,40 @@ class LoanApiIntegrationTest {
                 .isEqualTo("Member with id 9999 was not found.");
         assertProblem(borrow(9999, memberId), HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
 
-        MvcTestResult missing = post(LOANS, "{}");
+        MvcTestResult missing =
+                mvc.post()
+                        .uri(LOANS)
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, memberId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .exchange();
         assertProblem(missing, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
         assertThat(missing)
                 .bodyJson()
                 .extractingPath("$.errors[*].field")
                 .asArray()
-                .containsExactlyInAnyOrder("bookId", "memberId");
+                .containsExactly("bookId");
+    }
+
+    @Test
+    void theBorrowerIsTheTokensUserWhateverTheBodySays() {
+        long grace = saveMember("grace@example.com");
+
+        MvcTestResult result =
+                mvc.post()
+                        .uri(LOANS)
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, memberId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                "{\"bookId\": %d, \"memberId\": %d}"
+                                        .formatted(createBook("Dune", 1), grace))
+                        .exchange();
+
+        assertThat(result).hasStatus(HttpStatus.CREATED);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.member.id")
+                .isEqualTo(Math.toIntExact(memberId));
     }
 
     @Test
@@ -249,19 +285,53 @@ class LoanApiIntegrationTest {
     void getByIdReturnsTheLoanOr404() {
         long loanId = idOf(borrow(createBook("Dune", 1), memberId));
 
-        assertThat(mvc.get().uri(LOANS + "/{id}", loanId))
+        assertThat(getLoan(loanId, TestTokens.member(jwt, memberId)))
                 .hasStatus(HttpStatus.OK)
                 .bodyJson()
                 .extractingPath("$.book.title")
                 .isEqualTo("Dune");
         assertProblem(
-                mvc.get().uri(LOANS + "/{id}", 9999).exchange(),
+                getLoan(9999, TestTokens.member(jwt, memberId)),
                 HttpStatus.NOT_FOUND,
                 "RESOURCE_NOT_FOUND");
-        assertProblem(
-                mvc.post().uri(LOANS + "/{id}/return", 9999).exchange(),
-                HttpStatus.NOT_FOUND,
-                "RESOURCE_NOT_FOUND");
+        assertProblem(returnLoan(9999), HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND");
+    }
+
+    @Test
+    void aMemberCannotSeeOrReturnAnotherMembersLoan() {
+        long bookId = createBook("Dune", 1);
+        long loanId = idOf(borrow(bookId, memberId));
+        String grace = TestTokens.member(jwt, saveMember("grace@example.com"));
+
+        assertProblem(getLoan(loanId, grace), HttpStatus.FORBIDDEN, "ACCESS_DENIED");
+        assertProblem(returnLoanAs(loanId, grace), HttpStatus.FORBIDDEN, "ACCESS_DENIED");
+        assertThat(availableCopies(bookId)).isZero();
+    }
+
+    @Test
+    void anAdminCanSeeAndReturnAnyLoan() {
+        long bookId = createBook("Dune", 1);
+        long loanId = idOf(borrow(bookId, memberId));
+
+        assertThat(getLoan(loanId, TestTokens.admin(jwt))).hasStatus(HttpStatus.OK);
+        assertThat(returnLoanAs(loanId, TestTokens.admin(jwt))).hasStatus(HttpStatus.OK);
+        assertThat(availableCopies(bookId)).isEqualTo(1);
+    }
+
+    @Test
+    void myLoansListsOnlyTheTokensOwnLoans() {
+        long grace = saveMember("grace@example.com");
+        long first = idOf(borrow(createBook("Dune", 1), memberId));
+        borrow(createBook("Dune Messiah", 1), memberId);
+        borrow(createBook("Children of Dune", 1), grace);
+        returnLoanAs(first, TestTokens.member(jwt, memberId));
+
+        assertThat(titlesAs(TestTokens.member(jwt, memberId), LOANS + "/me"))
+                .containsExactly("Dune Messiah", "Dune");
+        assertThat(titlesAs(TestTokens.member(jwt, memberId), LOANS + "/me?status=ACTIVE"))
+                .containsExactly("Dune Messiah");
+        assertThat(titlesAs(TestTokens.member(jwt, grace), LOANS + "/me"))
+                .containsExactly("Children of Dune");
     }
 
     @Test
@@ -277,12 +347,15 @@ class LoanApiIntegrationTest {
         assertThat(titles(LOANS + "?memberId={id}&status=ACTIVE", memberId))
                 .containsExactly("Dune Messiah");
         assertThat(titles(LOANS + "?status=RETURNED")).containsExactly("Dune");
-        assertThat(mvc.get().uri(LOANS)).bodyJson().extractingPath("$.totalElements").isEqualTo(3);
+        assertThat(mvc.get().uri(LOANS).header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt)))
+                .bodyJson()
+                .extractingPath("$.totalElements")
+                .isEqualTo(3);
     }
 
     @Test
     void listReturns400ForAnUnknownStatusOrSortField() {
-        MvcTestResult unknownStatus = mvc.get().uri(LOANS + "?status=LOST").exchange();
+        MvcTestResult unknownStatus = asAdmin(mvc.get().uri(LOANS + "?status=LOST"));
         assertProblem(unknownStatus, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
         // Spring's own conversion message names the Java type (a class of this application)
         // and repeats the value; the response has a fixed text instead.
@@ -292,7 +365,7 @@ class LoanApiIntegrationTest {
                 .isEqualTo("has an invalid value");
         assertThat(unknownStatus).bodyText().doesNotContain("com.batuhanmeral", "LOST");
         assertProblem(
-                mvc.get().uri(LOANS + "?sort=member.password").exchange(),
+                asAdmin(mvc.get().uri(LOANS + "?sort=member.password")),
                 HttpStatus.BAD_REQUEST,
                 "INVALID_PARAMETER");
     }
@@ -302,7 +375,7 @@ class LoanApiIntegrationTest {
         long bookId = createBook("Dune", 1);
         borrow(bookId, memberId);
 
-        MvcTestResult result = mvc.delete().uri("/api/v1/books/{id}", bookId).exchange();
+        MvcTestResult result = asAdmin(mvc.delete().uri("/api/v1/books/{id}", bookId));
 
         assertProblem(result, HttpStatus.CONFLICT, "RESOURCE_IN_USE");
         assertThat(result)
@@ -316,7 +389,7 @@ class LoanApiIntegrationTest {
         long bookId = createBook("Dune", 1);
         returnLoan(idOf(borrow(bookId, memberId)));
 
-        MvcTestResult result = mvc.delete().uri("/api/v1/books/{id}", bookId).exchange();
+        MvcTestResult result = asAdmin(mvc.delete().uri("/api/v1/books/{id}", bookId));
 
         assertProblem(result, HttpStatus.CONFLICT, "RESOURCE_IN_USE");
         assertThat(result)
@@ -332,11 +405,11 @@ class LoanApiIntegrationTest {
         borrow(bookId, saveMember("grace@example.com"));
 
         MvcTestResult result =
-                mvc.patch()
-                        .uri("/api/v1/books/{id}", bookId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"totalCopies\": 1}")
-                        .exchange();
+                asAdmin(
+                        mvc.patch()
+                                .uri("/api/v1/books/{id}", bookId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"totalCopies\": 1}"));
 
         assertProblem(result, HttpStatus.CONFLICT, "COPIES_ON_LOAN");
     }
@@ -375,21 +448,58 @@ class LoanApiIntegrationTest {
     }
 
     private java.util.List<String> titles(String uriTemplate, Object... uriVariables) {
-        MvcTestResult result = mvc.get().uri(uriTemplate, uriVariables).exchange();
+        return titlesAs(TestTokens.admin(jwt), uriTemplate, uriVariables);
+    }
+
+    private java.util.List<String> titlesAs(
+            String authorization, String uriTemplate, Object... uriVariables) {
+        MvcTestResult result =
+                mvc.get()
+                        .uri(uriTemplate, uriVariables)
+                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .exchange();
         assertThat(result).hasStatus(HttpStatus.OK);
         return JsonPath.read(body(result), "$.content[*].book.title");
     }
 
+    /** Borrows as the member: the token names the borrower, the body only the book. */
     private MvcTestResult borrow(long bookId, long memberId) {
-        return post(LOANS, "{\"bookId\": %d, \"memberId\": %d}".formatted(bookId, memberId));
+        return mvc.post()
+                .uri(LOANS)
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, memberId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"bookId\": %d}".formatted(bookId))
+                .exchange();
     }
 
+    /** Returns as the member of the test's main member, who borrowed most of the loans. */
     private MvcTestResult returnLoan(long loanId) {
-        return mvc.post().uri(LOANS + "/{id}/return", loanId).exchange();
+        return returnLoanAs(loanId, TestTokens.member(jwt, memberId));
     }
 
+    private MvcTestResult returnLoanAs(long loanId, String authorization) {
+        return mvc.post()
+                .uri(LOANS + "/{id}/return", loanId)
+                .header(HttpHeaders.AUTHORIZATION, authorization)
+                .exchange();
+    }
+
+    private MvcTestResult getLoan(long loanId, String authorization) {
+        return mvc.get()
+                .uri(LOANS + "/{id}", loanId)
+                .header(HttpHeaders.AUTHORIZATION, authorization)
+                .exchange();
+    }
+
+    /** Catalogue changes (authors, books) are for admins. */
     private MvcTestResult post(String uri, String json) {
-        return mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json).exchange();
+        return asAdmin(mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json));
+    }
+
+    private MvcTestResult asAdmin(
+            org.springframework.test.web.servlet.assertj.MockMvcTester.MockMvcRequestBuilder
+                    request) {
+        return request.header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt)).exchange();
     }
 
     private static void assertProblem(MvcTestResult result, HttpStatus status, String errorCode) {

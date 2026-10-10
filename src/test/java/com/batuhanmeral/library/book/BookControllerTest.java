@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,6 +18,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /** Web layer only: how a lost race on a book becomes an error response. */
 @WebMvcTest(BookController.class)
+// The security filters are left out: these tests are about the error responses of the web layer.
+// Who may call what is tested with the whole application (SecurityRulesTest).
+@AutoConfigureMockMvc(addFilters = false)
 class BookControllerTest {
 
     @Autowired private MockMvcTester mvc;

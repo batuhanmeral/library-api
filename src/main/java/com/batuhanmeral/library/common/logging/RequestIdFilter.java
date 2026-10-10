@@ -20,8 +20,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * X-Request-Id response header, so a client can quote it when reporting a problem.
  *
  * <p>A servlet filter, not an interceptor: it runs for every request that reaches the application,
- * before DispatcherServlet and before the Spring Security filters of step 10, so even a request
- * that is rejected there has an id. The order puts it first among the filters.
+ * before DispatcherServlet and before Spring Security's filters, so even a request that is rejected
+ * there has an id. The order puts it first among the filters.
  *
  * <p>An id the client sends is kept, so a request can be followed through a gateway or another
  * service that already gave it one. It ends up in every log line of the request, so it must be

@@ -7,6 +7,16 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
+library:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+    # Optional: set both once to create the first administrator, then they may be
+    # removed. An existing account is never changed.
+    admin:
+      email: ${ADMIN_EMAIL:}
+      password: ${ADMIN_PASSWORD:}
+
 logging:
   structured:
     format:

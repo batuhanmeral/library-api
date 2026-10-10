@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
 import com.batuhanmeral.library.author.Author;
 import com.batuhanmeral.library.author.AuthorRepository;
 import com.batuhanmeral.library.book.Book;
@@ -37,6 +39,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -80,6 +83,10 @@ class AuditTrailTest {
 
     @Autowired private CommitFailingService commitFailingService;
 
+    @Autowired private JwtService jwt;
+
+    private static final String ADMIN_ACTOR = "actor=user:" + TestTokens.ADMIN_ID;
+
     @BeforeEach
     void cleanDatabase() {
         JdbcTestUtils.deleteFromTables(
@@ -101,15 +108,30 @@ class AuditTrailTest {
         assertThat(auditLines(output, "a-1"))
                 .singleElement()
                 .asString()
-                .contains("action=CATEGORY_CREATE target=" + id + " actor=system outcome=SUCCESS");
+                .contains(
+                        "action=CATEGORY_CREATE target="
+                                + id
+                                + " "
+                                + ADMIN_ACTOR
+                                + " outcome=SUCCESS");
         assertThat(auditLines(output, "a-2"))
                 .singleElement()
                 .asString()
-                .contains("action=CATEGORY_UPDATE target=" + id + " actor=system outcome=SUCCESS");
+                .contains(
+                        "action=CATEGORY_UPDATE target="
+                                + id
+                                + " "
+                                + ADMIN_ACTOR
+                                + " outcome=SUCCESS");
         assertThat(auditLines(output, "a-3"))
                 .singleElement()
                 .asString()
-                .contains("action=CATEGORY_DELETE target=" + id + " actor=system outcome=SUCCESS");
+                .contains(
+                        "action=CATEGORY_DELETE target="
+                                + id
+                                + " "
+                                + ADMIN_ACTOR
+                                + " outcome=SUCCESS");
     }
 
     @Test
@@ -126,7 +148,9 @@ class AuditTrailTest {
                 .contains(
                         "action=AUTHOR_DELETE target="
                                 + author.getId()
-                                + " actor=system outcome=FAILURE reason=RESOURCE_IN_USE");
+                                + " "
+                                + ADMIN_ACTOR
+                                + " outcome=FAILURE reason=RESOURCE_IN_USE");
     }
 
     @Test
@@ -141,7 +165,8 @@ class AuditTrailTest {
         assertThat(auditLines(output, "a-6"))
                 .singleElement()
                 .asString()
-                .contains("action=BOOK_CREATE target=" + id + " actor=system outcome=SUCCESS");
+                .contains(
+                        "action=BOOK_CREATE target=" + id + " " + ADMIN_ACTOR + " outcome=SUCCESS");
         assertThat(auditLines(output, "a-7"))
                 .singleElement()
                 .asString()
@@ -153,21 +178,24 @@ class AuditTrailTest {
         Book book = bookRepository.save(bookBy(authorRepository.save(new Author("F. Herbert"))));
         User member =
                 userRepository.save(new User("ada@example.com", "{noop}x", "Ada", Role.MEMBER));
-        String body = "{\"bookId\": " + book.getId() + ", \"memberId\": " + member.getId() + "}";
+        String body = "{\"bookId\": " + book.getId() + "}";
+        String token = TestTokens.member(jwt, member.getId());
+        String actor = "actor=user:" + member.getId();
 
-        long loanId = idOf(send(mvc.post(), "/api/v1/loans", body, "a-8"));
-        send(mvc.post(), "/api/v1/loans/" + loanId + "/return", null, "a-9");
-        send(mvc.post(), "/api/v1/loans/" + loanId + "/return", null, "a-10");
+        long loanId = idOf(send(mvc.post(), "/api/v1/loans", body, "a-8", token));
+        send(mvc.post(), "/api/v1/loans/" + loanId + "/return", null, "a-9", token);
+        send(mvc.post(), "/api/v1/loans/" + loanId + "/return", null, "a-10", token);
 
-        // The target of a borrow is the book: a refused borrow has no loan id to name.
+        // The target of a borrow is the book: a refused borrow has no loan id to name. The actor
+        // is the member, read from the token.
         assertThat(auditLines(output, "a-8"))
                 .singleElement()
                 .asString()
-                .contains("action=LOAN_BORROW target=" + book.getId() + " actor=system");
+                .contains("action=LOAN_BORROW target=" + book.getId() + " " + actor);
         assertThat(auditLines(output, "a-9"))
                 .singleElement()
                 .asString()
-                .contains("action=LOAN_RETURN target=" + loanId + " actor=system outcome=SUCCESS");
+                .contains("action=LOAN_RETURN target=" + loanId + " " + actor + " outcome=SUCCESS");
         assertThat(auditLines(output, "a-10"))
                 .singleElement()
                 .asString()
@@ -181,7 +209,49 @@ class AuditTrailTest {
         assertThat(auditLines(output, "a-11"))
                 .singleElement()
                 .asString()
-                .contains("action=OVERDUE_CHECK_START target=- actor=system outcome=SUCCESS");
+                .contains(
+                        "action=OVERDUE_CHECK_START target=- " + ADMIN_ACTOR + " outcome=SUCCESS");
+    }
+
+    @Test
+    void registeringIsAuditedWithTheNewUserAsTheTarget(CapturedOutput output) {
+        String body =
+                "{\"email\": \"ada@example.com\", \"password\": \"correct horse\","
+                        + " \"fullName\": \"Ada\"}";
+
+        long id = idOf(send(mvc.post(), "/api/v1/auth/register", body, "a-13", null));
+        send(mvc.post(), "/api/v1/auth/register", body, "a-14", null);
+
+        // Nobody is logged in while registering, so the actor is "system".
+        assertThat(auditLines(output, "a-13"))
+                .singleElement()
+                .asString()
+                .contains("action=USER_REGISTER target=" + id + " actor=system outcome=SUCCESS");
+        assertThat(auditLines(output, "a-14"))
+                .singleElement()
+                .asString()
+                .contains(
+                        "action=USER_REGISTER target=- actor=system outcome=FAILURE"
+                                + " reason=DUPLICATE_RESOURCE");
+    }
+
+    @Test
+    void failedLoginsAreAudited(CapturedOutput output) {
+        send(
+                mvc.post(),
+                "/api/v1/auth/login",
+                "{\"email\": \"nobody@example.com\", \"password\": \"wrong password\"}",
+                "a-15",
+                null);
+
+        // Who tried is not written: the address may not belong to anyone, and it is personal
+        // data. The request id leads to the API call line (method, path, status).
+        assertThat(auditLines(output, "a-15"))
+                .singleElement()
+                .asString()
+                .contains(
+                        "action=LOGIN target=- actor=system outcome=FAILURE"
+                                + " reason=BadCredentialsException");
     }
 
     @Test
@@ -253,12 +323,25 @@ class AuditTrailTest {
         assertThat(adviceOf(loanController)).contains("auditAspect");
     }
 
+    /** Sends the request as an admin. */
     private MvcTestResult send(
             MockMvcTester.MockMvcRequestBuilder request,
             String uri,
             String json,
             String requestId) {
+        return send(request, uri, json, requestId, TestTokens.admin(jwt));
+    }
+
+    private MvcTestResult send(
+            MockMvcTester.MockMvcRequestBuilder request,
+            String uri,
+            String json,
+            String requestId,
+            String authorization) {
         request.uri(uri).header(RequestIdFilter.HEADER, requestId);
+        if (authorization != null) {
+            request.header(HttpHeaders.AUTHORIZATION, authorization);
+        }
         if (json != null) {
             request.contentType(MediaType.APPLICATION_JSON).content(json);
         }

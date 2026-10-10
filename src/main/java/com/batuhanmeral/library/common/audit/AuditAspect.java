@@ -26,16 +26,16 @@ import org.springframework.stereotype.Component;
  * Writes one audit line for every call of an {@link Auditable} method:
  *
  * <pre>
- * action=BOOK_DELETE target=7 actor=system outcome=SUCCESS
- * action=BOOK_DELETE target=7 actor=system outcome=FAILURE reason=RESOURCE_IN_USE
+ * action=BOOK_DELETE target=7 actor=user:1 outcome=SUCCESS
+ * action=BOOK_DELETE target=7 actor=user:1 outcome=FAILURE reason=RESOURCE_IN_USE
  * </pre>
  *
  * The lines go to a logger of their own named "audit", so they can be sent to their own file or
  * kept longer than the rest of the log. The request id is on them like on every line (MDC).
  *
- * <p>The actor comes from the same AuditorAware as the createdBy columns: "system" until sign-in
- * exists (step 10). A failure names only the error code (or the exception type), never the
- * exception's message, which may repeat what the user sent.
+ * <p>The actor comes from the same AuditorAware as the createdBy columns: the user of the request's
+ * token ("user:12"), or "system" without one. A failure names only the error code (or the exception
+ * type), never the exception's message, which may repeat what the user sent.
  *
  * <p>Order: outside the transaction proxy. "SUCCESS" is written after the commit, so a change that
  * fails while being committed is audited as a failure. {@code @Retryable} cannot be wrapped this
