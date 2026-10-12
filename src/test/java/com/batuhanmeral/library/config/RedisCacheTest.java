@@ -12,6 +12,7 @@ import com.batuhanmeral.library.book.BookRepository;
 import com.batuhanmeral.library.category.Category;
 import com.batuhanmeral.library.category.CategoryRepository;
 import com.jayway.jsonpath.JsonPath;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +66,8 @@ class RedisCacheTest implements DatabaseTest {
     @Autowired private BookRepository bookRepository;
 
     @Autowired private CategoryRepository categoryRepository;
+
+    @Autowired private MeterRegistry meterRegistry;
 
     private long bookId;
 
@@ -130,6 +133,20 @@ class RedisCacheTest implements DatabaseTest {
                 .isBetween(Duration.ofMinutes(10).toSeconds() + 1, Duration.ofHours(1).toSeconds());
     }
 
+    /** spring.cache.redis.enable-statistics: hits and misses per cache, for /actuator/metrics. */
+    @Test
+    void hitsAndMissesAreCountedPerCache() {
+        double hits = gets("hit");
+        double misses = gets("miss");
+
+        getBook();
+        getBook();
+        getBook();
+
+        assertThat(gets("miss")).isEqualTo(misses + 1);
+        assertThat(gets("hit")).isEqualTo(hits + 2);
+    }
+
     /**
      * Redis is paused (the process is frozen, the port stays open), so commands time out instead of
      * failing at once: the worst case. The request still succeeds from the database after the
@@ -149,6 +166,15 @@ class RedisCacheTest implements DatabaseTest {
         } finally {
             REDIS.getDockerClient().unpauseContainerCmd(REDIS.getContainerId()).exec();
         }
+    }
+
+    private double gets(String result) {
+        return meterRegistry
+                .get("cache.gets")
+                .tag("cache", CacheNames.BOOKS)
+                .tag("result", result)
+                .functionCounter()
+                .count();
     }
 
     private MvcTestResult getBook() {

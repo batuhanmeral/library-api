@@ -94,6 +94,19 @@ public class SecurityConfig {
                                 .authenticated()
                                 .requestMatchers(API + "/admin/**")
                                 .hasRole("ADMIN")
+                                // Actuator: a load balancer or a container runtime asks for
+                                // health without a token, so health (with its liveness and
+                                // readiness groups) and the build info are public. The health
+                                // details and the metrics are for admins
+                                // (management.endpoint.health.roles).
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/actuator/health",
+                                        "/actuator/health/*",
+                                        "/actuator/info")
+                                .permitAll()
+                                .requestMatchers("/actuator/**")
+                                .hasRole("ADMIN")
                                 // Deny by default: a new endpoint is closed until a rule
                                 // above opens it.
                                 .anyRequest()

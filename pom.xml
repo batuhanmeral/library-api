@@ -69,6 +69,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
+		<!-- Actuator: health, info and metrics endpoints under /actuator (Micrometer for metrics). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<!-- JJWT signs and verifies the access tokens. The code compiles against the API only;
 		     the implementation and its JSON support (Jackson 2, version from Spring Boot) are
 		     needed at runtime. -->
@@ -163,6 +168,15 @@
 						<profile>dev</profile>
 					</profiles>
 				</configuration>
+				<executions>
+					<!-- Writes META-INF/build-info.properties (name, version, build time) into the
+					     jar; /actuator/info shows it. -->
+					<execution>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

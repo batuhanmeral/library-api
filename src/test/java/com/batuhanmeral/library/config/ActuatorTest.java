@@ -1,0 +1,184 @@
+package com.batuhanmeral.library.config;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.batuhanmeral.library.DatabaseTest;
+import com.batuhanmeral.library.auth.JwtService;
+import com.batuhanmeral.library.auth.TestTokens;
+import com.batuhanmeral.library.author.Author;
+import com.batuhanmeral.library.author.AuthorRepository;
+import com.batuhanmeral.library.book.Book;
+import com.batuhanmeral.library.book.BookRepository;
+import com.batuhanmeral.library.user.Role;
+import com.batuhanmeral.library.user.User;
+import com.batuhanmeral.library.user.UserRepository;
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
+
+/**
+ * The Actuator endpoints and who may see them: health and info are public (a load balancer and a
+ * container runtime ask without a token), the details of health and the metrics are for admins.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+class ActuatorTest implements DatabaseTest {
+
+    @Autowired private MockMvcTester mvc;
+
+    @Autowired private JwtService jwt;
+
+    @Autowired private AuthorRepository authorRepository;
+
+    @Autowired private BookRepository bookRepository;
+
+    @Autowired private UserRepository userRepository;
+
+    @Test
+    void healthIsPublicAndShowsOnlyTheStatus() {
+        MvcTestResult result = mvc.get().uri("/actuator/health").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("UP");
+        assertThat(result).bodyJson().doesNotHavePath("$.components");
+    }
+
+    @Test
+    void anAdminSeesWhatHealthIsMadeOf() {
+        MvcTestResult result =
+                mvc.get()
+                        .uri("/actuator/health")
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .exchange();
+
+        assertThat(result).bodyJson().extractingPath("$.components.db.status").isEqualTo("UP");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.components.db.details.database")
+                .isEqualTo("PostgreSQL");
+    }
+
+    @Test
+    void aMemberSeesOnlyTheStatus() {
+        MvcTestResult result =
+                mvc.get()
+                        .uri("/actuator/health")
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, 7))
+                        .exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().doesNotHavePath("$.components");
+    }
+
+    /** The groups a container runtime or Kubernetes asks: is the process alive, can it serve. */
+    @Test
+    void livenessAndReadinessHaveTheirOwnPaths() {
+        assertThat(mvc.get().uri("/actuator/health/liveness").exchange())
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$.status")
+                .isEqualTo("UP");
+
+        MvcTestResult readiness =
+                mvc.get()
+                        .uri("/actuator/health/readiness")
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .exchange();
+        assertThat(readiness).hasStatus(HttpStatus.OK);
+        // Ready means the database answers. Redis is left out on purpose: without the cache the
+        // application still serves every request, only slower.
+        assertThat(readiness).bodyJson().extractingPath("$.components.db.status").isEqualTo("UP");
+        assertThat(readiness).bodyJson().doesNotHavePath("$.components.redis");
+    }
+
+    @Test
+    void infoIsPublicAndShowsTheBuild() {
+        MvcTestResult result = mvc.get().uri("/actuator/info").exchange();
+
+        assertThat(result).hasStatus(HttpStatus.OK);
+        assertThat(result).bodyJson().extractingPath("$.build.artifact").isEqualTo("library-api");
+    }
+
+    @Test
+    void metricsAreForAdminsOnly() {
+        assertThat(mvc.get().uri("/actuator/metrics").exchange())
+                .hasStatus(HttpStatus.UNAUTHORIZED);
+        assertThat(
+                        mvc.get()
+                                .uri("/actuator/metrics")
+                                .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, 7))
+                                .exchange())
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(
+                        mvc.get()
+                                .uri("/actuator/metrics")
+                                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                                .exchange())
+                .hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .extractingPath("$.names")
+                .asArray()
+                .contains("http.server.requests", "jvm.memory.used", "hikaricp.connections")
+                .contains("library.loans.borrowed", "library.loans.returned");
+    }
+
+    @Test
+    void endpointsThatAreNotExposedDoNotExist() {
+        // env and beans would show settings and internals; they are not exposed over HTTP.
+        assertThat(
+                        mvc.get()
+                                .uri("/actuator/env")
+                                .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                                .exchange())
+                .hasStatus(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void aCommittedBorrowCountsInTheLoanMetric() {
+        double before = borrowedCount();
+        Author author = authorRepository.save(new Author("Frank Herbert"));
+        Book book = new Book("Dune", 1);
+        book.setAuthor(author);
+        long bookId = bookRepository.save(book).getId();
+        long memberId =
+                userRepository
+                        .save(new User("ada@example.com", "{noop}x", "Ada", Role.MEMBER))
+                        .getId();
+
+        assertThat(borrow(bookId, memberId)).hasStatus(HttpStatus.CREATED);
+        // The second attempt is refused (no copy left) and does not count.
+        assertThat(borrow(bookId, memberId)).hasStatus(HttpStatus.CONFLICT);
+
+        assertThat(borrowedCount()).isEqualTo(before + 1);
+    }
+
+    private MvcTestResult borrow(long bookId, long memberId) {
+        return mvc.post()
+                .uri("/api/v1/loans")
+                .header(HttpHeaders.AUTHORIZATION, TestTokens.member(jwt, memberId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"bookId\": %d}".formatted(bookId))
+                .exchange();
+    }
+
+    private double borrowedCount() {
+        MvcTestResult result =
+                mvc.get()
+                        .uri("/actuator/metrics/library.loans.borrowed")
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
+                        .exchange();
+        assertThat(result).hasStatus(HttpStatus.OK);
+        String body =
+                new String(result.getResponse().getContentAsByteArray(), StandardCharsets.UTF_8);
+        Number count = JsonPath.read(body, "$.measurements[0].value");
+        return count.doubleValue();
+    }
+}

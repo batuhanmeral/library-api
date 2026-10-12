@@ -42,6 +42,9 @@ spring:
     redis:
       # A method that returns null is not cached (ours never do).
       cache-null-values: false
+      # Count hits, misses, puts and evictions per cache: /actuator/metrics/cache.gets
+      # with ?tag=cache:books&tag=result:hit
+      enable-statistics: true
   task:
     # The executor behind @Async (POST /admin/jobs/overdue-check). Two threads,
     # up to four when ten tasks are already waiting; more are refused.
@@ -61,6 +64,38 @@ spring:
       shutdown:
         await-termination: true
         await-termination-period: 30s
+
+# Actuator: operational endpoints under /actuator. SecurityConfig decides who may
+# call them: health and info are public, everything else needs an admin token.
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only these are reachable over HTTP. env, beans, configprops, heapdump and
+        # the others would show settings and internals, so they stay off.
+        include: health, info, metrics
+  endpoint:
+    health:
+      # Anyone sees UP or DOWN; an admin also sees each part (database, Redis,
+      # disk space) and its details.
+      show-details: when-authorized
+      show-components: when-authorized
+      roles: ADMIN
+      probes:
+        # /actuator/health/liveness and /actuator/health/readiness, also outside
+        # Kubernetes (the Docker health check uses liveness).
+        enabled: true
+      group:
+        readiness:
+          # Ready to take requests when the database answers. Redis is not part of
+          # it: without the cache every request still works, only slower.
+          include: readinessState, db
+  info:
+    # /actuator/info shows the build (from build-info.properties) and nothing else.
+    java:
+      enabled: false
+    os:
+      enabled: false
 
 logging:
   pattern:

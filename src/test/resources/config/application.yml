@@ -26,3 +26,9 @@ library:
       # A dummy key for tests only: Base64 of 32 times "x". Every real environment
       # has its own random JWT_SECRET.
       secret: eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHg=
+management:
+  health:
+    redis:
+      # The tests have no Redis (RedisCacheTest starts its own); its health check
+      # would report DOWN and turn /actuator/health DOWN with it.
+      enabled: false
