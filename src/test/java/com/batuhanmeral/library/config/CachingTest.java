@@ -34,9 +34,10 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * What is cached and when an entry is dropped. The tests use Spring's in-memory cache
- * (spring.cache.type=simple) instead of Redis, which they do not have; the annotations, keys and
- * evictions are the same. The other tests run without a cache (spring.cache.type=none), so they
- * never see an entry left behind by another test.
+ * (spring.cache.type=simple) instead of Redis; the annotations, keys and evictions are the same,
+ * and the context starts without a container. What only Redis shows (JSON values, TTLs, a Redis
+ * that stops answering) is in RedisCacheTest. The other tests run without a cache
+ * (spring.cache.type=none), so they never see an entry left behind by another test.
  *
  * <p>Hibernate's statistics count the SQL statements: a request answered from the cache runs none.
  */

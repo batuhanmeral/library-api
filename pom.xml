@@ -23,6 +23,7 @@
 		<mapstruct.version>1.6.3</mapstruct.version>
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<jjwt.version>0.13.0</jjwt.version>
+		<jacoco.version>0.8.16</jacoco.version>
 	</properties>
 
 	<dependencies>
@@ -204,13 +205,37 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!-- Load Mockito as a Java agent; newer JDKs block agents that attach themselves at runtime. -->
+			<!-- Load Mockito as a Java agent; newer JDKs block agents that attach themselves at runtime.
+			     @{argLine} adds the JaCoCo agent that the jacoco plugin below puts in that property. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+					<argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
 				</configuration>
+			</plugin>
+			<!-- Test coverage: which lines and branches the tests ran. The report is written by
+			     ./mvnw verify to target/site/jacoco/index.html. It is a map for finding untested
+			     code, not a goal, so there is no minimum that fails the build. -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 			<!-- Code format check: "./mvnw verify" fails on unformatted code, "./mvnw spotless:apply" fixes it. -->
 			<plugin>

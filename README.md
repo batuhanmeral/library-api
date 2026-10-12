@@ -240,7 +240,7 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 ## Requirements
 
 - JDK 21 or newer. Maven is not needed; the Maven Wrapper (`./mvnw`) downloads it.
-- Docker with Docker Compose, for PostgreSQL and Redis. The tests do not need it.
+- Docker with Docker Compose, for PostgreSQL and Redis. The tests need Docker too: they start their own PostgreSQL and Redis containers.
 
 ## Run
 
@@ -282,9 +282,11 @@ A Postman collection and a local environment are in [postman/](postman/). Import
 ## Test
 
 ```bash
-./mvnw verify            # compile, run the tests (in-memory H2, no Redis) and check code format
+./mvnw verify            # compile, run the tests and check code format
 ./mvnw spotless:apply    # fix code format
 ```
+
+The tests run against real PostgreSQL and Redis in Docker containers, started and removed by the test run ([Testcontainers](https://testcontainers.com)); the first run downloads the images. `./mvnw verify` also writes a test coverage report to `target/site/jacoco/index.html`.
 
 ## License
 
