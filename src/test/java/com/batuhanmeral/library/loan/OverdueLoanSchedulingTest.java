@@ -7,8 +7,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.scheduling.config.CronTask;
 import org.springframework.scheduling.config.ScheduledTask;
 import org.springframework.scheduling.config.ScheduledTaskHolder;
@@ -21,20 +25,14 @@ import org.springframework.scheduling.support.SimpleTriggerContext;
  * {@code @EnableScheduling} implements.
  */
 @SpringBootTest(properties = "library.scheduling.enabled=true")
+@ExtendWith(OutputCaptureExtension.class)
 class OverdueLoanSchedulingTest implements DatabaseTest {
 
     @Autowired private ScheduledTaskHolder scheduledTasks;
 
     @Test
     void theOverdueCheckRunsEveryNightAtTwoInIstanbul() {
-        ScheduledTask task =
-                scheduledTasks.getScheduledTasks().stream()
-                        .filter(t -> t.toString().contains("OverdueLoanScheduler.markOverdueLoans"))
-                        .findFirst()
-                        .orElseThrow();
-
-        assertThat(task.getTask()).isInstanceOf(CronTask.class);
-        CronTask cron = (CronTask) task.getTask();
+        CronTask cron = overdueCheck();
         assertThat(cron.getExpression()).isEqualTo("0 0 2 * * *");
 
         // Ask the trigger for the run after noon UTC on 24 November. 02:00 in Istanbul (UTC+3)
@@ -45,5 +43,29 @@ class OverdueLoanSchedulingTest implements DatabaseTest {
                         .nextExecution(
                                 new SimpleTriggerContext(Clock.fixed(noonUtc, ZoneOffset.UTC)));
         assertThat(next).isEqualTo(Instant.parse("2026-11-24T23:00:00Z"));
+    }
+
+    /**
+     * No request started the nightly run, so there is no request id for its log lines. The run gets
+     * an id of its own, the way a request does, and gives it back when it ends: the scheduler's
+     * thread runs other tasks too.
+     */
+    @Test
+    void aScheduledRunHasAnIdInItsLogLines(CapturedOutput output) {
+        overdueCheck().getRunnable().run();
+
+        assertThat(output)
+                .containsPattern("\\[overdue-check-[0-9a-f]{8}] .*Overdue check for \\d{4}-");
+        assertThat(MDC.get("requestId")).isNull();
+    }
+
+    private CronTask overdueCheck() {
+        ScheduledTask task =
+                scheduledTasks.getScheduledTasks().stream()
+                        .filter(t -> t.toString().contains("OverdueLoanScheduler.markOverdueLoans"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(task.getTask()).isInstanceOf(CronTask.class);
+        return (CronTask) task.getTask();
     }
 }

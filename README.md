@@ -12,7 +12,7 @@ A REST API for running a small library: the book catalog, its members and their 
 - Every night, loans past their due date are marked as overdue and the member gets a reminder.
 - When a book is added with an ISBN, its missing details are filled in from Open Library.
 - Every request gets an id, returned in a header and printed on every log line it causes; changes are written to an audit log.
-- Sign in with JWT; administrators and members have different permissions, and members see only their own loans.
+- Sign in with JWT; administrators and members have different permissions, and members see only their own loans. Login and registration attempts are limited per client.
 - Frequently read data is cached in Redis.
 - Interactive API documentation with Swagger UI.
 - Health checks, build info and metrics for monitoring.
@@ -55,7 +55,8 @@ curl http://localhost:8080/api/v1/users/me -H 'Authorization: Bearer eyJ...'
 - Registration always creates a member. The password needs at least 8 characters and at most 72 bytes; only a BCrypt hash of it is stored. Email addresses are not case-sensitive, and an address can have one account. An optional `phone` in international form (`+905551234567`) receives the overdue reminders.
 - A token is valid for one hour; then log in again. There is no logout: a token stays valid until it expires.
 - The administrator account is created at startup from `ADMIN_EMAIL` and `ADMIN_PASSWORD` (see Run). An existing administrator with that address is never changed; if the address belongs to a member, the application does not start.
-- Failed logins are written to the audit log (`action=LOGIN ... outcome=FAILURE`), without the address that was tried. There is no limit on login attempts yet.
+- Failed logins are written to the audit log (`action=LOGIN ... outcome=FAILURE`), without the address that was tried.
+- One client may send at most 10 login requests a minute and 10 registrations an hour, right or wrong; then the answer is `429 TOO_MANY_REQUESTS` with a `Retry-After` header (seconds until the window ends) and the password is not checked. A client is one IPv4 address or one IPv6 /64 network. The counters are kept in Redis; while Redis is down, requests are let through without a limit. Behind a reverse proxy, set `server.forward-headers-strategy=native` so that the client address comes from the proxy's `X-Forwarded-For` header (only then: without a proxy a client could send any address in it).
 
 | Who | May |
 |---|---|
@@ -142,7 +143,7 @@ Emails and SMS are not really sent; they are written to the application log, wit
 ### Request ids and logs
 
 - Every response has an `X-Request-Id` header. A client can send its own id (letters, digits, `.`, `_` and `-`, up to 64 characters), for example to follow a request through a gateway; any other value is replaced by a new id. Quote the id when reporting a problem.
-- Every log line written while serving a request shows its id in brackets, also the lines of work the request started in the background (the overdue check):
+- Every log line written while serving a request shows its id in brackets, also the lines of work the request started in the background (the overdue check). The nightly run, which no request started, has an id of its own (`overdue-check-1a2b3c4d`):
 
   ```text
   ... [postman-request-1] c.b.l.c.l.RequestLoggingInterceptor : GET /api/v1/categories returned 200 in 4 ms (CategoryController.findAll)
@@ -200,6 +201,14 @@ library:
     books-ttl: 10m                # how long a cached book lives
     categories-ttl: 1h            # how long the cached category list lives
   security:
+    rate-limit:
+      enabled: true               # false: no limit on logins and registrations
+      login:
+        limit: 10                 # requests per client and window
+        window: 1m
+      register:
+        limit: 10
+        window: 1h
     jwt:
       expiration: 1h              # how long a token is accepted
       issuer: library-api
@@ -209,7 +218,7 @@ The token signing key (`JWT_SECRET`) and the administrator account (`ADMIN_EMAIL
 
 They can be overridden like any Spring Boot property, for example with `LIBRARY_LOAN_MAX_ACTIVE_LOANS=5`. The application does not start if a value is missing or invalid (a limit below 1, an unknown time zone).
 
-Data is stored in PostgreSQL; Redis holds the cache.
+Data is stored in PostgreSQL; Redis holds the cache and the login and registration counters. Every Redis key starts with `library-api:`. The `dev` and `prod` profiles cannot be active together: the application refuses to start, since `dev` adds a demo member to the database.
 
 ## Errors
 
@@ -250,6 +259,7 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 | `MEMBER_HAS_OVERDUE_LOAN` | 422 | The member has a loan past its due date |
 | `NOT_A_MEMBER` | 422 | The user of the token is no longer a member (the role changed after the token was issued) |
 | `ISBN_NOT_FOUND` | 422 | A new book has no title and Open Library does not know its ISBN |
+| `TOO_MANY_REQUESTS` | 429 | Too many logins or registrations from one client; `Retry-After` says how many seconds to wait |
 | `EXTERNAL_SERVICE_UNAVAILABLE` | 503 | A new book has no title and Open Library could not be reached; send the title or try again later |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | The body is not `application/json` |
 | `REQUEST_REJECTED` | 400 | The request was refused before it reached the API: a `;` or an invalid encoding in the path, for example. Also any other client error (4xx) |
@@ -293,7 +303,7 @@ curl -i -X POST http://localhost:8080/api/v1/categories \
 curl http://localhost:8080/api/v1/categories
 ```
 
-To look at the database: `docker compose exec postgres psql -U library library`. To look at the cache: `docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --scan'` lists the keys (`books::7`, `categories::all`); `GET books::7` shows an entry as JSON.
+To look at the database: `docker compose exec postgres psql -U library library`. To look at the cache: `docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --scan'` lists the keys (`library-api:books::7`, `library-api:categories::all`, and the login counters `library-api:rate-limit:login:<address>`); `GET library-api:books::7` shows an entry as JSON.
 
 A Postman collection and a local environment are in [postman/](postman/). Import both, select the "library-api local" environment and set `adminEmail` and `adminPassword` there to the values in `.env`. Run the "Auth" folder first: it logs in as the administrator, registers a new member, logs in as that member and saves both tokens in the environment, which the other folders send. The "Loans" folder borrows as that member; the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
 

@@ -262,6 +262,31 @@ class CategoryApiIntegrationTest implements DatabaseTest {
                 "MALFORMED_REQUEST");
     }
 
+    /**
+     * Spring's own detail repeats the value ("Failed to convert 'id' with value: 'abc<b>'"). The
+     * body is JSON, so a browser does not run it, but nothing the client sent belongs in the text.
+     */
+    @Test
+    void aValueThatIsNotANumberIsNotRepeatedInTheDetail() {
+        MvcTestResult result = mvc.get().uri(CATEGORIES + "/{id}", "abc<b>").exchange();
+
+        assertProblem(result, HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST");
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("The path variable 'id' has an invalid value.");
+    }
+
+    @Test
+    void anUnknownPathIsNotRepeatedInTheDetail() {
+        MvcTestResult result = mvc.get().uri(CATEGORIES + "/1/does-not-exist").exchange();
+
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .isEqualTo("There is no resource at this path.");
+    }
+
     @Test
     void unknownPathReturns404Problem() {
         // A path below a public prefix reaches Spring MVC, which finds no handler. Other unknown

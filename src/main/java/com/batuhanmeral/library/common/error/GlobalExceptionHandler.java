@@ -9,6 +9,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.hibernate.exception.DataException;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -24,10 +25,13 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Turns every exception that leaves a controller into an RFC 9457 problem response with an {@code
@@ -203,6 +207,39 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         body.setProperty(ERROR_CODE, ErrorCode.VALIDATION_FAILED.name());
         body.setProperty("errors", errors);
         return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    /**
+     * A path variable or a request parameter that does not convert to its type ("abc" for an id).
+     * Spring's detail names the type and repeats the value; the client gets the name only.
+     */
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        String detail = "A value has an invalid type.";
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+            String kind =
+                    mismatch.getParameter().hasParameterAnnotation(PathVariable.class)
+                            ? "path variable"
+                            : "parameter";
+            detail = "The %s '%s' has an invalid value.".formatted(kind, mismatch.getName());
+        }
+        ProblemDetail body = createProblemDetail(ex, status, detail, null, null, request);
+        return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    /** No controller and no static file for the path. Spring's detail repeats the path. */
+    @Override
+    protected ResponseEntity<Object> handleNoResourceFoundException(
+            NoResourceFoundException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        ex.getBody().setDetail("There is no resource at this path.");
+        return handleExceptionInternal(ex, ex.getBody(), headers, status, request);
     }
 
     /**

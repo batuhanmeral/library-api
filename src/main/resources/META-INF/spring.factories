@@ -1,0 +1,3 @@
+# Run on every start, while the environment is prepared (see DevProfileGuard).
+org.springframework.boot.EnvironmentPostProcessor=\
+com.batuhanmeral.library.config.DevProfileGuard
