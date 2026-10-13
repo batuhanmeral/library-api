@@ -40,7 +40,8 @@ class SchemaMigrationTest implements DatabaseTest {
                 .containsExactly(
                         "V1__create_schema.sql",
                         "V2__add_book_version.sql",
-                        "V3__one_open_loan_per_member_and_book.sql");
+                        "V3__one_open_loan_per_member_and_book.sql",
+                        "V4__trigram_index_on_book_title.sql");
     }
 
     @Test
