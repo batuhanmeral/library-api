@@ -178,12 +178,17 @@
 					</profiles>
 				</configuration>
 				<executions>
-					<!-- Writes META-INF/build-info.properties (name, version, build time) into the
-					     jar; /actuator/info shows it. -->
+					<!-- Writes META-INF/build-info.properties (group, artifact, name, version) into
+					     the jar; /actuator/info shows it. No build time: Spring Boot fixes the time
+					     stamps in the jar so that the same sources give the same bytes, and the
+					     time shown would be that fixed value (1980-02-01), not the build's. -->
 					<execution>
 						<goals>
 							<goal>build-info</goal>
 						</goals>
+						<configuration>
+							<time>off</time>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

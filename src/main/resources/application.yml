@@ -81,6 +81,10 @@ management:
       show-details: when-authorized
       show-components: when-authorized
       roles: ADMIN
+      # Anonymous calls get the answer of the last second: health is public, and
+      # each check asks the database and Redis.
+      cache:
+        time-to-live: 1s
       probes:
         # /actuator/health/liveness and /actuator/health/readiness, also outside
         # Kubernetes (the Docker health check uses liveness).

@@ -1,0 +1,18 @@
+# What docker build does not send to the builder. Above all the local secrets:
+# a .env copied into an image would ship its passwords with every copy.
+.env
+.env.*
+.git
+.github
+.docs
+.superpowers
+.idea
+.vscode
+*.iml
+target
+postman
+Dockerfile
+.dockerignore
+docker-compose.yml
+README.md
+LICENSE

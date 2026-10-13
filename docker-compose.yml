@@ -1,7 +1,9 @@
-# Local PostgreSQL and Redis for the dev profile. Values come from .env (copy .env.example).
-#   docker compose up -d      start in the background
-#   docker compose down       stop; the data stays in the volume
-#   docker compose down -v    stop and delete the data
+# Local PostgreSQL and Redis for the dev profile, and the application itself as a
+# container. Values come from .env (copy .env.example).
+#   docker compose up -d                        PostgreSQL and Redis, for ./mvnw spring-boot:run
+#   docker compose --profile app up -d --build  the same plus the application (prod profile)
+#   docker compose --profile app down           stop; the data stays in the volume
+#   docker compose down -v                      stop and delete the data
 services:
   postgres:
     # Pinned by digest: the tag can be moved to another image, the digest cannot.
@@ -53,6 +55,50 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # The application from the Dockerfile, with the prod profile. It is in the "app"
+  # profile, so plain "docker compose up" does not start it.
+  app:
+    profiles: [app]
+    build: .
+    image: library-api:local
+    environment:
+      # Inside the compose network the services are reached by their names, on
+      # their own ports. The application keeps its tables in a schema of its own
+      # ("app"): the dev profile's tables in the same database hold demo data that
+      # the prod profile's Flyway does not know and would refuse.
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}?currentSchema=app
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_FLYWAY_SCHEMAS: app
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Redis database 1, so the cache of the dev application (database 0) and
+      # this one never mix entries for the same book id.
+      SPRING_DATA_REDIS_DATABASE: "1"
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      # Optional: the first administrator, as in the dev profile.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # The image is not changed at runtime; Tomcat only needs a writable /tmp,
+    # where nothing may be executed.
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    # Without a limit the JVM takes 75% of the machine's memory for the heap
+    # (MaxRAMPercentage in the Dockerfile); with it, 75% of this.
+    mem_limit: 768m
+    pids_limit: 256
 
 volumes:
   postgres-data:

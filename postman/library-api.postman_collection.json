@@ -1909,6 +1909,219 @@
           }
         ]
       }
+    },
+    {
+      "name": "Monitoring",
+      "description": "Actuator and the API description. They live outside /api/v1, so the requests use {{serverUrl}}. Health and info are public; the health details and the metrics need the administrator's token (run the \"Auth\" folder first).",
+      "item": [
+        {
+          "name": "Health, without a token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Only the status\", () => {",
+                  "    pm.expect(pm.response.json().status).to.eql(\"UP\");",
+                  "    pm.expect(pm.response.json()).to.not.have.property(\"components\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/health",
+            "description": "Anyone sees UP or DOWN, nothing more.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Health, as the administrator",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The database is one of the parts\", () => pm.expect(pm.response.json().components.db.status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/health",
+            "description": "An administrator also sees each part: db, redis, diskSpace, ...",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Readiness",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ready\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/health/readiness",
+            "description": "Ready to serve: the database answers. Redis is not part of it. Liveness is at /actuator/health/liveness.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Build info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Shows the artifact\", () => pm.expect(pm.response.json().build.artifact).to.eql(\"library-api\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/info",
+            "description": "Group, artifact, name and version of the build.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Metrics without a token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Error code is AUTHENTICATION_REQUIRED\", () => pm.expect(pm.response.json().errorCode).to.eql(\"AUTHENTICATION_REQUIRED\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/metrics",
+            "description": "Metrics are for administrators.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Loans borrowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"One count\", () => pm.expect(pm.response.json().measurements[0].statistic).to.eql(\"COUNT\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/metrics/library.loans.borrowed",
+            "description": "Loans committed since the application started. The \"Loans\" folder raises it.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cache hits of the book cache",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/actuator/metrics/cache.gets?tag=cache:books&tag=result:hit",
+            "description": "GET /books/{id} answered from Redis. Use result:miss for the reads that went to the database. Without Redis (cache type none) the metric does not exist and the answer is 404.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "OpenAPI description",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Describes the library API\", () => pm.expect(pm.response.json().info.title).to.eql(\"Library API\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{serverUrl}}/v3/api-docs",
+            "description": "What Swagger UI (/swagger-ui.html) shows. Off with the prod profile unless API_DOCS_ENABLED=true.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
     }
   ],
   "auth": {

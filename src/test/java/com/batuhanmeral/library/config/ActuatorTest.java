@@ -15,6 +15,8 @@ import com.batuhanmeral.library.user.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -130,15 +132,32 @@ class ActuatorTest implements DatabaseTest {
                 .contains("library.loans.borrowed", "library.loans.returned");
     }
 
-    @Test
-    void endpointsThatAreNotExposedDoNotExist() {
-        // env and beans would show settings and internals; they are not exposed over HTTP.
+    /** env, beans and the rest would show settings, memory and internals: not even admins. */
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "/actuator/env",
+                "/actuator/beans",
+                "/actuator/configprops",
+                "/actuator/heapdump",
+                "/actuator/threaddump",
+                "/actuator/loggers",
+                "/actuator/mappings"
+            })
+    void endpointsThatAreNotExposedDoNotExist(String path) {
         assertThat(
                         mvc.get()
-                                .uri("/actuator/env")
+                                .uri(path)
                                 .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                                 .exchange())
                 .hasStatus(HttpStatus.NOT_FOUND);
+    }
+
+    /** Health is public, its parts are not: an anonymous caller cannot ask for one by name. */
+    @ParameterizedTest
+    @ValueSource(strings = {"/actuator/health/db", "/actuator/health/diskSpace"})
+    void anAnonymousCallerCannotReadAHealthComponent(String path) {
+        assertThat(mvc.get().uri(path).exchange()).hasStatus(HttpStatus.NOT_FOUND);
     }
 
     @Test

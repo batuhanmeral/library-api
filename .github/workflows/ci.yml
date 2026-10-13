@@ -31,3 +31,36 @@ jobs:
 
       - name: Run ./mvnw verify
         run: ./mvnw --batch-mode --no-transfer-progress verify
+
+  image:
+    name: Build the image and start it
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Passwords for this run only, generated here; nothing is stored.
+      - name: Write a throwaway .env
+        run: |
+          {
+            echo "POSTGRES_DB=library"
+            echo "POSTGRES_USER=library"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "REDIS_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_SECRET=$(openssl rand -base64 32)"
+          } > .env
+
+      # --wait returns once every container reports healthy (the application's
+      # Docker health check), or fails after the timeout.
+      - name: Start PostgreSQL, Redis and the application
+        run: docker compose --profile app up --detach --build --wait --wait-timeout 180
+
+      - name: Check that the application is ready
+        run: curl --fail --silent --show-error http://127.0.0.1:8080/actuator/health/readiness
+
+      - name: Show the application log
+        if: failure()
+        run: docker compose --profile app logs app

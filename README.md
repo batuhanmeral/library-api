@@ -15,6 +15,8 @@ A REST API for running a small library: the book catalog, its members and their 
 - Sign in with JWT; administrators and members have different permissions, and members see only their own loans.
 - Frequently read data is cached in Redis.
 - Interactive API documentation with Swagger UI.
+- Health checks, build info and metrics for monitoring.
+- Runs as a Docker container together with PostgreSQL and Redis.
 
 ## Status
 
@@ -158,6 +160,22 @@ Emails and SMS are not really sent; they are written to the application log, wit
 - A service call that takes 500 ms or more is logged as a warning. With the `dev` profile the duration of every service call is logged.
 - With the `prod` profile, log lines are JSON objects in [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html); the request id is the `requestId` field.
 
+### API documentation
+
+Swagger UI at `http://localhost:8080/swagger-ui.html` lists every endpoint with its parameters, bodies and responses, and can send requests. Log in with `POST /api/v1/auth/login`, press "Authorize" and paste the `accessToken`; requests that need a token then send it. The OpenAPI description itself is at `/v3/api-docs`. With the `prod` profile both are off unless `API_DOCS_ENABLED=true`.
+
+### Monitoring
+
+| Endpoint | Who | What |
+|---|---|---|
+| `GET /actuator/health` | anyone | `UP` or `DOWN`; an administrator also sees each part (database, Redis, disk space) |
+| `GET /actuator/health/liveness` | anyone | the process is running; the Docker health check asks this |
+| `GET /actuator/health/readiness` | anyone | ready to serve requests: the database answers. Redis is not part of it; without the cache requests are only slower |
+| `GET /actuator/info` | anyone | the build: group, artifact, version |
+| `GET /actuator/metrics`, `GET /actuator/metrics/{name}` | administrators | request counts and times (`http.server.requests`), JVM, connection pool, cache hits and misses (`cache.gets`), loans (`library.loans.borrowed`, `library.loans.returned`) |
+
+Filter a metric by tags, for example cache hits of the book cache: `/actuator/metrics/cache.gets?tag=cache:books&tag=result:hit`. Other Actuator endpoints are not exposed.
+
 ### Settings
 
 ```yaml
@@ -278,6 +296,18 @@ curl http://localhost:8080/api/v1/categories
 To look at the database: `docker compose exec postgres psql -U library library`. To look at the cache: `docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --scan'` lists the keys (`books::7`, `categories::all`); `GET books::7` shows an entry as JSON.
 
 A Postman collection and a local environment are in [postman/](postman/). Import both, select the "library-api local" environment and set `adminEmail` and `adminPassword` there to the values in `.env`. Run the "Auth" folder first: it logs in as the administrator, registers a new member, logs in as that member and saves both tokens in the environment, which the other folders send. The "Loans" folder borrows as that member; the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
+
+### Run in Docker
+
+The application can run as a container next to PostgreSQL and Redis. The image is built from the `Dockerfile` (the tests are not run in the build), and the container uses the `prod` profile:
+
+```bash
+docker compose --profile app up -d --build --wait
+```
+
+It listens on `http://localhost:8080` (`APP_PORT` in `.env`); stop `./mvnw spring-boot:run` first or choose another port. It keeps its tables in a schema of its own (`app`) and uses Redis database 1, so it does not see the data of the `dev` profile. `ADMIN_EMAIL` and `ADMIN_PASSWORD` create the administrator on the first start; `API_DOCS_ENABLED=true` turns Swagger UI on. `docker compose --profile app down` stops everything.
+
+To build only the image: `docker build -t library-api .`
 
 ## Test
 
