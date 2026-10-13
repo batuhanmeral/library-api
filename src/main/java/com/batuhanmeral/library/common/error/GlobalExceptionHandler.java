@@ -1,6 +1,7 @@
 package com.batuhanmeral.library.common.error;
 
 import com.batuhanmeral.library.auth.InvalidTokenException;
+import com.batuhanmeral.library.common.ratelimit.TooManyRequestsException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -65,6 +66,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ApiException.class)
     ProblemDetail handleApiException(ApiException ex, HttpServletRequest request) {
         return problem(ex.getErrorCode(), ex.getMessage(), request);
+    }
+
+    /**
+     * 429 with Retry-After (RFC 9110): the seconds until the client's window ends, rounded up, so a
+     * client that waits that long is never refused again for the same window.
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    ResponseEntity<ProblemDetail> handleTooManyRequests(
+            TooManyRequestsException ex, HttpServletRequest request) {
+        long millis = ex.getRetryAfter().toMillis();
+        long seconds = Math.max(1, (millis + 999) / 1000);
+        return ResponseEntity.status(ex.getErrorCode().status())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(problem(ex.getErrorCode(), ex.getMessage(), request));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

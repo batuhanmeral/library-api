@@ -26,6 +26,8 @@ public enum ErrorCode {
     MEMBER_HAS_OVERDUE_LOAN(HttpStatus.UNPROCESSABLE_CONTENT),
     NOT_A_MEMBER(HttpStatus.UNPROCESSABLE_CONTENT),
     ISBN_NOT_FOUND(HttpStatus.UNPROCESSABLE_CONTENT),
+    /** Too many sign-in or registration requests from one client (Retry-After says how long). */
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS),
     EXTERNAL_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     REQUEST_REJECTED(HttpStatus.BAD_REQUEST),

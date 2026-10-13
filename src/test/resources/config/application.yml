@@ -22,6 +22,10 @@ library:
   open-library:
     base-url: http://127.0.0.1:1
   security:
+    # The tests log in and register far more often than a client may;
+    # RateLimitTest turns the limits on with its own Redis.
+    rate-limit:
+      enabled: false
     jwt:
       # A dummy key for tests only: Base64 of 32 times "x". Every real environment
       # has its own random JWT_SECRET.

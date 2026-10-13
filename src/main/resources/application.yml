@@ -40,6 +40,10 @@ spring:
     # in-memory map.
     type: redis
     redis:
+      # Every key starts with the application's name ("library-api:books::7"), so a
+      # Redis shared with other applications keeps them apart. The rate limit counters
+      # use the same prefix.
+      key-prefix: "library-api:"
       # A method that returns null is not cached (ours never do).
       cache-null-values: false
       # Count hits, misses, puts and evictions per cache: /actuator/metrics/cache.gets
@@ -134,6 +138,17 @@ library:
     # (ExecutionTimeAspect). Shorter calls are logged at DEBUG.
     slow-call-threshold: 500ms
   security:
+    # How often one client (one IPv4 address, one IPv6 /64 network) may log in or
+    # register (RateLimitConfig). The counters are kept in Redis; while Redis is
+    # down, requests are not counted.
+    rate-limit:
+      enabled: true
+      login:
+        limit: 10
+        window: 1m
+      register:
+        limit: 10
+        window: 1h
     jwt:
       # The signing key (secret) comes from the environment: JWT_SECRET in the dev
       # and prod profiles. Without it the application does not start.

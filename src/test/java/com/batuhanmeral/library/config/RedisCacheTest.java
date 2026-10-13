@@ -89,7 +89,7 @@ class RedisCacheTest implements DatabaseTest {
     void aBookIsStoredAsPlainJsonWithItsTimeToLive() {
         assertThat(getBook()).hasStatus(HttpStatus.OK);
 
-        String key = "books::" + bookId;
+        String key = "library-api:books::" + bookId;
         String stored = redis.opsForValue().get(key);
         assertThat(stored).isNotNull();
         assertThat((String) JsonPath.read(stored, "$.title")).isEqualTo("Dune");
@@ -117,7 +117,7 @@ class RedisCacheTest implements DatabaseTest {
                         .exchange();
         assertThat(patch).hasStatus(HttpStatus.OK);
 
-        assertThat(redis.hasKey("books::" + bookId)).isFalse();
+        assertThat(redis.hasKey("library-api:books::" + bookId)).isFalse();
         assertThat(titleOf(getBook())).isEqualTo("Dune Messiah");
     }
 
@@ -127,9 +127,9 @@ class RedisCacheTest implements DatabaseTest {
 
         assertThat(mvc.get().uri("/api/v1/categories").exchange()).hasStatus(HttpStatus.OK);
 
-        String stored = redis.opsForValue().get("categories::all");
+        String stored = redis.opsForValue().get("library-api:categories::all");
         assertThat((String) JsonPath.read(stored, "$[0].name")).isEqualTo("Science");
-        assertThat(redis.getExpire("categories::all"))
+        assertThat(redis.getExpire("library-api:categories::all"))
                 .isBetween(Duration.ofMinutes(10).toSeconds() + 1, Duration.ofHours(1).toSeconds());
     }
 
