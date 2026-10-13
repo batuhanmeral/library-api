@@ -7,9 +7,12 @@ import com.batuhanmeral.library.book.BookService;
 import com.batuhanmeral.library.book.dto.BookResponse;
 import com.batuhanmeral.library.common.web.PageResponse;
 import com.batuhanmeral.library.common.web.SortableFields;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+@Tag(name = "Authors")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/authors")
@@ -36,20 +40,24 @@ public class AuthorController {
     private final AuthorService authorService;
     private final BookService bookService;
 
+    @SecurityRequirements
     @GetMapping
     public PageResponse<AuthorResponse> findAll(
-            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         return PageResponse.from(authorService.findAll(SORTABLE.check(pageable)));
     }
 
+    @SecurityRequirements
     @GetMapping("/{id}")
     public AuthorResponse findById(@PathVariable Long id) {
         return authorService.findById(id);
     }
 
+    @SecurityRequirements
     @GetMapping("/{id}/books")
     public PageResponse<BookResponse> findBooks(
-            @PathVariable Long id, @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+            @PathVariable Long id,
+            @ParameterObject @PageableDefault(size = 20, sort = "title") Pageable pageable) {
         return PageResponse.from(
                 bookService.findByAuthor(id, BookController.SORTABLE.check(pageable)));
     }

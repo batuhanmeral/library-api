@@ -107,6 +107,16 @@ public class SecurityConfig {
                                 .permitAll()
                                 .requestMatchers("/actuator/**")
                                 .hasRole("ADMIN")
+                                // The OpenAPI description and Swagger UI (springdoc). They show
+                                // the paths and fields of the API, which every client sees
+                                // anyway; the prod profile turns them off unless asked for.
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/v3/api-docs",
+                                        "/v3/api-docs/**",
+                                        "/swagger-ui.html",
+                                        "/swagger-ui/**")
+                                .permitAll()
                                 // Deny by default: a new endpoint is closed until a rule
                                 // above opens it.
                                 .anyRequest()

@@ -4,6 +4,7 @@ import com.batuhanmeral.library.common.audit.AuditAction;
 import com.batuhanmeral.library.common.audit.Auditable;
 import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.common.error.ErrorCode;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Starts the nightly overdue check by hand. Administrators only (SecurityConfig: /admin/**). */
+@Tag(name = "Admin jobs")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/admin/jobs")

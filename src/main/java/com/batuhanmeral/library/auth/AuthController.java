@@ -4,6 +4,8 @@ import com.batuhanmeral.library.auth.dto.LoginRequest;
 import com.batuhanmeral.library.auth.dto.RegisterRequest;
 import com.batuhanmeral.library.auth.dto.TokenResponse;
 import com.batuhanmeral.library.user.dto.UserResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Open to everyone (SecurityConfig): these are the endpoints that give a client its token. */
+@Tag(name = "Auth")
+@SecurityRequirements
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/auth")

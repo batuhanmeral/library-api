@@ -22,6 +22,15 @@ library:
       email: ${ADMIN_EMAIL:}
       password: ${ADMIN_PASSWORD:}
 
+# The OpenAPI description (/v3/api-docs) and Swagger UI are off in production
+# unless API_DOCS_ENABLED=true: they list every path and field, which a public
+# deployment does not need to advertise.
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+
 logging:
   structured:
     format:

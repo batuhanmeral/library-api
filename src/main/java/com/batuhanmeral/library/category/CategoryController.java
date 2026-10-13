@@ -2,6 +2,8 @@ package com.batuhanmeral.library.category;
 
 import com.batuhanmeral.library.category.dto.CategoryRequest;
 import com.batuhanmeral.library.category.dto.CategoryResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+@Tag(name = "Categories")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/categories")
@@ -26,11 +29,13 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
+    @SecurityRequirements
     @GetMapping
     public List<CategoryResponse> findAll() {
         return categoryService.findAll();
     }
 
+    @SecurityRequirements
     @GetMapping("/{id}")
     public CategoryResponse findById(@PathVariable Long id) {
         return categoryService.findById(id);

@@ -9,9 +9,11 @@ import com.batuhanmeral.library.loan.dto.LoanRequest;
 import com.batuhanmeral.library.loan.dto.LoanResponse;
 import com.batuhanmeral.library.loan.dto.LoanSearchCriteria;
 import com.batuhanmeral.library.loan.dto.OwnLoanFilter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -29,6 +31,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * Who may call each endpoint is set in SecurityConfig; whether a loan belongs to the caller is
  * checked in LoanService. The caller arrives as the {@code @AuthenticationPrincipal} parameter.
  */
+@Tag(name = "Loans")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/loans")
@@ -75,9 +78,10 @@ public class LoanController {
      */
     @GetMapping("/me")
     public PageResponse<LoanResponse> ownLoans(
-            @Valid OwnLoanFilter filter,
+            @Valid @ParameterObject OwnLoanFilter filter,
             @AuthenticationPrincipal AuthenticatedUser member,
-            @PageableDefault(
+            @ParameterObject
+                    @PageableDefault(
                             size = 20,
                             sort = {"loanDate", "id"},
                             direction = Sort.Direction.DESC)
@@ -95,8 +99,9 @@ public class LoanController {
     /** Every member's loans; admins only. */
     @GetMapping
     public PageResponse<LoanResponse> search(
-            @Valid LoanSearchCriteria criteria,
-            @PageableDefault(
+            @Valid @ParameterObject LoanSearchCriteria criteria,
+            @ParameterObject
+                    @PageableDefault(
                             size = 20,
                             sort = {"loanDate", "id"},
                             direction = Sort.Direction.DESC)

@@ -7,9 +7,12 @@ import com.batuhanmeral.library.book.dto.BookSearchCriteria;
 import com.batuhanmeral.library.book.dto.NewBookRequest;
 import com.batuhanmeral.library.common.web.PageResponse;
 import com.batuhanmeral.library.common.web.SortableFields;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+@Tag(name = "Books")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/books")
@@ -42,13 +46,15 @@ public class BookController {
      * The criteria record is bound from the query string (page, size and sort go to the pageable).
      * {@code @Valid} checks it the same way as a request body.
      */
+    @SecurityRequirements
     @GetMapping
     public PageResponse<BookResponse> search(
-            @Valid BookSearchCriteria criteria,
-            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+            @Valid @ParameterObject BookSearchCriteria criteria,
+            @ParameterObject @PageableDefault(size = 20, sort = "title") Pageable pageable) {
         return PageResponse.from(bookService.search(criteria, SORTABLE.check(pageable)));
     }
 
+    @SecurityRequirements
     @GetMapping("/{id}")
     public BookResponse findById(@PathVariable Long id) {
         return bookService.findById(id);
