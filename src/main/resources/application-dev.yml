@@ -2,19 +2,23 @@
 # ./mvnw spring-boot:run turns this profile on (see pom.xml).
 spring:
   config:
-    # Read POSTGRES_*, JWT_SECRET and ADMIN_* from .env in the working directory,
+    # Read POSTGRES_*, DB_*, JWT_SECRET and ADMIN_* from .env in the working directory,
     # the same file Docker Compose reads. Real environment variables win over the file.
     import: optional:file:.env[.properties]
+  # Two users, created by docker/postgres/init/10-create-roles.sh: the application
+  # may only read and write rows, Flyway owns the schema and changes it.
   datasource:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5434}/${POSTGRES_DB}
-    username: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
+    username: ${DB_APP_USER}
+    password: ${DB_APP_PASSWORD}
   data:
     redis:
       host: localhost
       port: ${REDIS_PORT:6380}
       password: ${REDIS_PASSWORD}
   flyway:
+    user: ${DB_OWNER_USER}
+    password: ${DB_OWNER_PASSWORD}
     # Also run db/dev: data for trying the API locally (a demo member).
     locations: classpath:db/migration,classpath:db/dev
 

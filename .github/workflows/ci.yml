@@ -49,6 +49,10 @@ jobs:
             echo "POSTGRES_DB=library"
             echo "POSTGRES_USER=library"
             echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "DB_OWNER_USER=library_owner"
+            echo "DB_OWNER_PASSWORD=$(openssl rand -hex 16)"
+            echo "DB_APP_USER=library_app"
+            echo "DB_APP_PASSWORD=$(openssl rand -hex 16)"
             echo "REDIS_PASSWORD=$(openssl rand -hex 16)"
             echo "JWT_SECRET=$(openssl rand -base64 32)"
           } > .env

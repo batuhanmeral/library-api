@@ -2,10 +2,16 @@
 # missing, the placeholder stays as text and startup fails with
 # "'url' must start with "jdbc"".
 spring:
+  # The application's user may only read and write rows; the migrations run as
+  # the owner of the schema, with a connection of their own that is closed when
+  # they are done. Both may be the same user where the database has only one.
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  flyway:
+    user: ${DB_MIGRATION_USERNAME}
+    password: ${DB_MIGRATION_PASSWORD}
   data:
     redis:
       host: ${REDIS_HOST}

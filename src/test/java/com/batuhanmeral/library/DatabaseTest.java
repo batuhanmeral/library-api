@@ -26,12 +26,12 @@ import org.testcontainers.utility.DockerImageName;
 public interface DatabaseTest {
 
     /**
-     * postgres:18.4-alpine, pinned by digest like in docker-compose.yml. Testcontainers cannot
+     * postgres:18.6-alpine, pinned by digest like in docker-compose.yml. Testcontainers cannot
      * parse a name with both a tag and a digest, so the tag is only in this comment.
      */
     DockerImageName POSTGRES_IMAGE =
             DockerImageName.parse(
-                    "postgres@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15");
+                    "postgres@sha256:9ba53c7d41ea093baf5c1ba635ba5434c4f979880527d49bb7d9237d3193085b");
 
     /**
      * Every cached test context keeps its own connection pool open (the test application.yml makes

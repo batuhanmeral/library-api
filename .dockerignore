@@ -14,5 +14,6 @@ postman
 Dockerfile
 .dockerignore
 docker-compose.yml
+docker
 README.md
 LICENSE

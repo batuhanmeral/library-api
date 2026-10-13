@@ -7,17 +7,37 @@
 services:
   postgres:
     # Pinned by digest: the tag can be moved to another image, the digest cannot.
-    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+    image: postgres:18.6-alpine@sha256:9ba53c7d41ea093baf5c1ba635ba5434c4f979880527d49bb7d9237d3193085b
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      # The superuser: only the roles script below uses it.
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # The owner of the schema (Flyway) and the application's user (rows only),
+      # created on the first start by docker/postgres/init/10-create-roles.sh.
+      DB_OWNER_USER: ${DB_OWNER_USER:?set DB_OWNER_USER in .env}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?set DB_OWNER_PASSWORD in .env}
+      DB_APP_USER: ${DB_APP_USER:?set DB_APP_USER in .env}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?set DB_APP_PASSWORD in .env}
     ports:
       # Only this machine can connect, not the rest of the network.
       - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
     volumes:
       # PostgreSQL 18 images keep their data under /var/lib/postgresql/18/docker.
       - postgres-data:/var/lib/postgresql
+      # Scripts here run once, when the data directory is still empty. A volume
+      # created before the script existed has no such users: docker compose down -v.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    # Run as the image's "postgres" user from the start. As root, the image's
+    # entrypoint would need capabilities to change file owners and switch users;
+    # this way it needs none.
+    user: postgres
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # Only the volume is written to; the server's socket and lock file go to a
+    # tmpfs.
+    read_only: true
+    tmpfs: [/var/run/postgresql, /tmp]
     healthcheck:
       # $$ escapes Compose interpolation; the variables are read inside the container.
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
@@ -68,8 +88,11 @@ services:
       # ("app"): the dev profile's tables in the same database hold demo data that
       # the prod profile's Flyway does not know and would refuse.
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}?currentSchema=app
-      DB_USERNAME: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # Rows only; Flyway creates and changes the tables as their owner.
+      DB_USERNAME: ${DB_APP_USER}
+      DB_PASSWORD: ${DB_APP_PASSWORD}
+      DB_MIGRATION_USERNAME: ${DB_OWNER_USER}
+      DB_MIGRATION_PASSWORD: ${DB_OWNER_PASSWORD}
       SPRING_FLYWAY_SCHEMAS: app
       REDIS_HOST: redis
       REDIS_PORT: "6379"
