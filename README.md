@@ -272,7 +272,7 @@ Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) proble
 
 ## Run
 
-Copy the example settings and fill in `.env`: a database password, a Redis password, a token signing key (`JWT_SECRET`, the output of `openssl rand -base64 32`; the application does not start with the placeholder) and the administrator's email and password. Then start PostgreSQL and the application:
+Copy the example settings and fill in `.env`: passwords for the three database users, a Redis password, a token signing key (`JWT_SECRET`, the output of `openssl rand -base64 32`; the application does not start with the placeholder) and the administrator's email and password. Then start PostgreSQL and the application:
 
 ```bash
 cp .env.example .env
@@ -282,14 +282,20 @@ docker compose up -d --wait
 
 `./mvnw spring-boot:run` uses the `dev` profile: it connects to the database from `docker-compose.yml` on `localhost:5434` (`POSTGRES_PORT` in `.env`; change it if the port is busy) and to Redis on `localhost:6380` (`REDIS_PORT`), and logs SQL statements. The schema is created and updated by Flyway at startup. `docker compose down` stops the database and keeps the data; `docker compose down -v` deletes it too.
 
-To run the packaged application elsewhere, use the `prod` profile and pass the connections and the signing key as environment variables (`REDIS_PORT` defaults to 6379). Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` too on the first start to create the administrator:
+The database has three users, all from `.env`. `POSTGRES_USER` is the superuser of the container and only creates the other two on the first start. `DB_OWNER_USER` owns the tables: the migrations run as this user. `DB_APP_USER` is what the application connects with; it can read, add, change and delete rows, but cannot create, change, empty or drop tables. The two users are created only when the database volume is new: after updating from a version without them, add the `DB_OWNER_*` and `DB_APP_*` lines from `.env.example` to `.env` and recreate the volume with `docker compose down -v` (this deletes the local data).
+
+To run the packaged application elsewhere, use the `prod` profile and pass the connections and the signing key as environment variables (`REDIS_PORT` defaults to 6379). `DB_USERNAME` is the application's user and `DB_MIGRATION_USERNAME` the owner of the tables, which runs the migrations at startup; they may be the same user. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` too on the first start to create the administrator:
 
 ```bash
 ./mvnw package
 SPRING_PROFILES_ACTIVE=prod DB_URL=jdbc:postgresql://db-host:5432/library \
-  DB_USERNAME=library DB_PASSWORD=... REDIS_HOST=redis-host REDIS_PASSWORD=... \
+  DB_USERNAME=library_app DB_PASSWORD=... \
+  DB_MIGRATION_USERNAME=library_owner DB_MIGRATION_PASSWORD=... \
+  REDIS_HOST=redis-host REDIS_PASSWORD=... \
   JWT_SECRET=... java -jar target/library-api-0.0.1-SNAPSHOT.jar
 ```
+
+The title search needs the `pg_trgm` extension, which the migrations create; the owner of the tables needs the right to create objects in the `public` schema for that (the owner of the database has it).
 
 The API listens on `http://localhost:8080/api/v1`. Try it as the administrator from `.env`:
 
@@ -303,7 +309,7 @@ curl -i -X POST http://localhost:8080/api/v1/categories \
 curl http://localhost:8080/api/v1/categories
 ```
 
-To look at the database: `docker compose exec postgres psql -U library library`. To look at the cache: `docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --scan'` lists the keys (`library-api:books::7`, `library-api:categories::all`, and the login counters `library-api:rate-limit:login:<address>`); `GET library-api:books::7` shows an entry as JSON.
+To look at the database: `docker compose exec postgres psql -U library library` (the superuser from `.env`). To look at the cache: `docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli --scan'` lists the keys (`library-api:books::7`, `library-api:categories::all`, and the login counters `library-api:rate-limit:login:<address>`); `GET library-api:books::7` shows an entry as JSON.
 
 A Postman collection and a local environment are in [postman/](postman/). Import both, select the "library-api local" environment and set `adminEmail` and `adminPassword` there to the values in `.env`. Run the "Auth" folder first: it logs in as the administrator, registers a new member, logs in as that member and saves both tokens in the environment, which the other folders send. The "Loans" folder borrows as that member; the "Admin jobs" folder starts the overdue check. Two requests in the "Books" folder call Open Library and need internet access. Watch the application log for the emails, SMS and audit lines; the "Categories" folder also sends its own request id.
 
@@ -317,6 +323,8 @@ docker compose --profile app up -d --build --wait
 
 It listens on `http://localhost:8080` (`APP_PORT` in `.env`); stop `./mvnw spring-boot:run` first or choose another port. It keeps its tables in a schema of its own (`app`) and uses Redis database 1, so it does not see the data of the `dev` profile. `ADMIN_EMAIL` and `ADMIN_PASSWORD` create the administrator on the first start; `API_DOCS_ENABLED=true` turns Swagger UI on. `docker compose --profile app down` stops everything.
 
+The containers run without root and without Linux capabilities, on a read-only file system; only the database volume and small temporary directories are writable.
+
 To build only the image: `docker build -t library-api .`
 
 ## Test
@@ -327,6 +335,14 @@ To build only the image: `docker build -t library-api .`
 ```
 
 The tests run against real PostgreSQL and Redis in Docker containers, started and removed by the test run ([Testcontainers](https://testcontainers.com)); the first run downloads the images. `./mvnw verify` also writes a test coverage report to `target/site/jacoco/index.html`.
+
+GitHub Actions runs `./mvnw verify` on every push and pull request, then builds the image, starts it with PostgreSQL and Redis, and scans it with [Trivy](https://trivy.dev): the run fails on a high or critical vulnerability that has a fix. The same checks run every Monday, so a vulnerability found after the last push shows up too. To scan a local image the same way:
+
+```bash
+docker save library-api:local --output image.tar
+docker run --rm -v "$PWD/image.tar:/image.tar:ro" aquasec/trivy:0.76.2 \
+  image --input /image.tar --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed
+```
 
 ## License
 
