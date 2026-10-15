@@ -5,10 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 
-/**
- * A clock a test can move forward, for rules that depend on dates passing. Clock.fixed cannot do
- * this: it is immutable, and the application holds the one instance it was given.
- */
+/** Testin ileri alabildiği saat. Clock.fixed değişmez ve uygulama verilen tek örneği tutar. */
 public class MutableClock extends Clock {
 
     private final ZoneId zone;

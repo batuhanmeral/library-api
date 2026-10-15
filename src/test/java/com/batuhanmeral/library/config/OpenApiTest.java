@@ -12,9 +12,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * The OpenAPI description springdoc builds from the controllers, and the Swagger UI page that shows
- * it. Both are public: the description lists paths and fields, nothing a client of the API cannot
- * see anyway.
+ * springdoc'un controller'lardan kurduğu OpenAPI açıklaması ve Swagger UI; ikisi de herkese açık.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -46,7 +44,7 @@ class OpenApiTest implements DatabaseTest {
                 .extractingPath("$.security[0].bearerAuth")
                 .asArray()
                 .isEmpty();
-        // Public endpoints override the global requirement with an empty list.
+        // Herkese açık uçlar genel gereksinimi boş listeyle ezer.
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$.paths['/api/v1/auth/login'].post.security")
@@ -60,7 +58,7 @@ class OpenApiTest implements DatabaseTest {
         assertThat(result).bodyJson().doesNotHavePath("$.paths['/api/v1/books'].post.security");
     }
 
-    /** Search filters and paging are query parameters, not one object parameter. */
+    /** Filtreler ve sayfalama tek nesne değil, ayrı query parametreleri. */
     @Test
     void searchFiltersAndPagingAreSeparateQueryParameters() {
         MvcTestResult result = mvc.get().uri("/v3/api-docs").exchange();

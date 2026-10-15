@@ -50,8 +50,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.ClassUtils;
 
 /**
- * The audit trail of the running application: which calls write an audit line, with which target,
- * and where the audit aspect sits among the other proxies of a bean.
+ * Çalışan uygulamanın audit izi: hangi çağrı hangi hedefle satır yazar, aspect diğer proxy'ler
+ * arasında nerede durur.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -170,8 +170,7 @@ class AuditTrailTest implements DatabaseTest {
         send(mvc.post(), "/api/v1/loans/" + loanId + "/return", null, "a-9", token);
         send(mvc.post(), "/api/v1/loans/" + loanId + "/return", null, "a-10", token);
 
-        // The target of a borrow is the book: a refused borrow has no loan id to name. The actor
-        // is the member, read from the token.
+        // Ödüncün hedefi kitaptır: reddedilen ödüncün id'si yok. Aktör token'daki üye.
         assertThat(auditLines(output, "a-8"))
                 .singleElement()
                 .asString()
@@ -206,7 +205,7 @@ class AuditTrailTest implements DatabaseTest {
         long id = idOf(send(mvc.post(), "/api/v1/auth/register", body, "a-13", null));
         send(mvc.post(), "/api/v1/auth/register", body, "a-14", null);
 
-        // Nobody is logged in while registering, so the actor is "system".
+        // Kayıtta giriş yapan yok, aktör "system".
         assertThat(auditLines(output, "a-13"))
                 .singleElement()
                 .asString()
@@ -228,8 +227,7 @@ class AuditTrailTest implements DatabaseTest {
                 "a-15",
                 null);
 
-        // Who tried is not written: the address may not belong to anyone, and it is personal
-        // data. The request id leads to the API call line (method, path, status).
+        // Deneyen yazılmaz: adres kimseye ait olmayabilir ve kişisel veridir.
         assertThat(auditLines(output, "a-15"))
                 .singleElement()
                 .asString()
@@ -248,8 +246,7 @@ class AuditTrailTest implements DatabaseTest {
     }
 
     /**
-     * A change is a success only once it is committed. The audit aspect wraps the transaction, so a
-     * commit that fails after the method returned is audited as a failure.
+     * Değişiklik ancak commit'ten sonra başarılıdır; commit'i düşen çağrı hata olarak audit edilir.
      */
     @Test
     void aCommitThatFailsIsAuditedAsAFailure(CapturedOutput output) {
@@ -261,8 +258,8 @@ class AuditTrailTest implements DatabaseTest {
     }
 
     /**
-     * A target expression is only parsed when its method is first called. This parses every one in
-     * the application now, so a typo fails the build instead of a request.
+     * Hedef ifadeleri ilk çağrıda parse edilir; bu test hepsini şimdi parse eder, yazım hatası
+     * build'i düşürsün.
      */
     @Test
     void everyAuditTargetInTheApplicationParses() {
@@ -272,7 +269,7 @@ class AuditTrailTest implements DatabaseTest {
                         .map(context::getType)
                         .filter(type ->
                                 type != null && type.getName().startsWith("com.batuhanmeral"))
-                        // A proxy's class overrides the methods without their annotations.
+                        // Proxy sınıfı metodları anotasyonsuz override eder.
                         .map(ClassUtils::getUserClass)
                         .distinct()
                         .flatMap(type -> Arrays.stream(type.getMethods()))
@@ -291,10 +288,8 @@ class AuditTrailTest implements DatabaseTest {
     }
 
     /**
-     * The order of the proxies of one bean, outermost first. On a service: timing, audit, then the
-     * transaction. Spring's {@code @Retryable} always puts its interceptor in front of the advice a
-     * bean already has, so on LoanFacade each attempt is timed on its own, and borrowing and
-     * returning are audited one level up, on LoanController, outside the retries.
+     * Bir bean'in proxy sırası, en dıştan: süre, audit, transaction. {@code @Retryable} hep en
+     * dışta, bu yüzden ödünç LoanController'da audit edilir.
      */
     @Test
     void theAuditWrapsTheTransactionAndStaysOutsideTheRetries() {
@@ -307,7 +302,7 @@ class AuditTrailTest implements DatabaseTest {
         assertThat(adviceOf(loanController)).contains("auditAspect");
     }
 
-    /** Sends the request as an admin. */
+    /** İsteği admin olarak gönderir. */
     private MvcTestResult send(
             MockMvcTester.MockMvcRequestBuilder request,
             String uri,
@@ -332,7 +327,7 @@ class AuditTrailTest implements DatabaseTest {
         return request.exchange();
     }
 
-    /** The audit lines written while serving the request with this id. */
+    /** Bu id'li isteğe hizmet ederken yazılan audit satırları. */
     private static List<String> auditLines(CapturedOutput output, String requestId) {
         return output.getOut()
                 .lines()
@@ -364,10 +359,10 @@ class AuditTrailTest implements DatabaseTest {
         return id.longValue();
     }
 
-    /** A transactional method whose commit fails after the method itself returned normally. */
+    /** Metod normal döndükten sonra commit'i düşen transaction'lı metod. */
     static class CommitFailingService {
 
-        // Any action will do; this bean exists only in this test.
+        // Herhangi bir eylem olur; bu bean sadece bu testte var.
         @Auditable(action = AuditAction.CATEGORY_CREATE)
         @Transactional
         public void save() {

@@ -3,14 +3,14 @@ package com.batuhanmeral.library.auth;
 import com.batuhanmeral.library.user.Role;
 
 /**
- * Authorization header values for tests. The tokens are signed by the application's own JwtService,
- * so requests that carry them go through the real filter, as a client's would.
+ * Testler için Authorization değerleri; uygulamanın kendi JwtService'i imzalar, istekler gerçek
+ * filter'dan geçer.
  */
 public final class TestTokens {
 
     /**
-     * The user id in admin tokens. Tokens are checked without reading the database, so an admin
-     * needs no row to manage the catalogue; the id only shows up in createdBy and the audit log.
+     * Admin token'larındaki kullanıcı id'si. Token veritabanına bakılmadan doğrulanır, admin'in
+     * satırı gerekmez.
      */
     public static final long ADMIN_ID = 1_000_000;
 

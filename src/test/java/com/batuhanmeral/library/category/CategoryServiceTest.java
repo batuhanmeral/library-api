@@ -33,7 +33,7 @@ class CategoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        // No Spring container: the repository is a mock, the mapper is the generated class.
+        // Spring container yok: repository mock, mapper üretilen sınıf.
         categoryService =
                 new CategoryService(categoryRepository, bookRepository, new CategoryMapperImpl());
     }
@@ -86,8 +86,8 @@ class CategoryServiceTest {
         assertThat(result.name()).isEqualTo("New name");
         assertThat(existing.getName()).isEqualTo("New name");
         assertThat(existing.getDescription()).isEqualTo("New description");
-        // No save(): the loaded entity is managed, dirty checking writes the change. The flush
-        // runs the UPDATE before the response is built, so updatedAt is already set in it.
+        // save() yok: entity managed, dirty checking yazar; flush cevaptan önce UPDATE'i
+        // çalıştırır.
         verify(categoryRepository, never()).save(any());
         verify(categoryRepository).flush();
     }

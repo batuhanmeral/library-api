@@ -4,12 +4,11 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 
 /**
- * One page of a list, as the API returns it. Spring Data's {@code PageImpl} is not returned
- * directly: its JSON shape is an implementation detail that has changed between versions, and it
- * carries fields clients do not need ({@code pageable}, {@code sort}, {@code empty}, ...).
+ * API'nin döndüğü bir sayfa. {@code PageImpl} doğrudan dönmez: JSON biçimi sürümler arasında
+ * değişti ve gereksiz alanlar taşır.
  *
- * @param page zero-based page number
- * @param size the page size that was used, after the server's limit was applied
+ * @param page sıfırdan başlayan sayfa numarası
+ * @param size sunucunun sınırı uygulandıktan sonraki sayfa boyu
  */
 public record PageResponse<T>(
         List<T> content, int page, int size, long totalElements, int totalPages) {

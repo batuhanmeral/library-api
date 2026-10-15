@@ -1,9 +1,8 @@
 package com.batuhanmeral.library.common.error;
 
 /**
- * The caller is logged in but may not act on this resource, such as a member reading another
- * member's loan. Rules that need the resource itself live in the service; rules that depend only on
- * the path and the role are in SecurityConfig.
+ * Giriş yapılmış ama bu kaynak üzerinde yetki yok, örn. başka üyenin ödüncünü okumak. Kaynağa bakan
+ * kurallar service'te, sadece yol ve role bakanlar SecurityConfig'te.
  */
 public class ForbiddenException extends ApiException {
 

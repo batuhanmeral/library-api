@@ -1,8 +1,8 @@
 package com.batuhanmeral.library.common.error;
 
 /**
- * Base class for errors the application raises on purpose. The message becomes the {@code detail}
- * of the error response, so it must be safe to show to a client.
+ * Uygulamanın bilerek fırlattığı hataların tabanı. Mesaj cevabın {@code detail}'i olur, istemciye
+ * gösterilebilir olmalı.
  */
 public abstract class ApiException extends RuntimeException {
 

@@ -12,8 +12,8 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
- * The audit aspect around a plain object (AspectJProxyFactory), with a fixed auditor. How it works
- * inside the application, together with transactions and retries, is in AuditTrailTest.
+ * Audit aspect'i düz bir nesne etrafında (AspectJProxyFactory). Uygulama içindeki davranışı
+ * AuditTrailTest'te.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class AuditAspectTest {
@@ -24,8 +24,7 @@ class AuditAspectTest {
     void aSuccessfulCallIsAuditedWithItsTargetAndActor(CapturedOutput output) {
         catalog.delete(7L);
 
-        // The level and the logger name, in any line layout: Spring Boot's pattern when a test
-        // context set up logging earlier in the run, Logback's default when this class runs alone.
+        // Satır düzeninden bağımsız olarak seviye ve logger adı.
         assertThat(output)
                 .containsPattern(
                         "INFO\\s.*\\baudit\\b.*action=BOOK_DELETE target=7 actor=librarian"
@@ -48,11 +47,11 @@ class AuditAspectTest {
                 .contains(
                         "action=BOOK_DELETE target=7 actor=librarian outcome=FAILURE"
                                 + " reason=RESOURCE_IN_USE")
-                // The exception's message may hold user data; the audit line has only the code.
+                // Hata mesajı kullanıcı verisi içerebilir; audit satırında sadece kod var.
                 .doesNotContain("Dune is on loan");
     }
 
-    /** Without a result there is nothing for {@code #result?.id()} to read: the target is "-". */
+    /** Sonuç yoksa {@code #result?.id()} okuyacak bir şey bulamaz: hedef "-". */
     @Test
     void anUnexpectedFailureIsAuditedWithTheExceptionType(CapturedOutput output) {
         assertThatThrownBy(() -> catalog.create(null)).isInstanceOf(IllegalArgumentException.class);
@@ -70,7 +69,7 @@ class AuditAspectTest {
         assertThat(output).contains("action=OVERDUE_CHECK_START target=- actor=librarian");
     }
 
-    /** Auditing must never break the call it audits. */
+    /** Audit, audit ettiği çağrıyı asla bozmamalı. */
     @Test
     void aTargetExpressionThatFailsDoesNotFailTheCall(CapturedOutput output) {
         assertThat(catalog.update(7L)).isEqualTo("updated");
@@ -86,8 +85,8 @@ class AuditAspectTest {
     }
 
     /**
-     * Expressions may read parameters and call methods on them, nothing more: no static methods or
-     * types ({@code T(...)}), no constructors, no bean references.
+     * İfadeler parametreleri okuyup metodlarını çağırabilir, fazlası değil: statik metod, tip,
+     * constructor ve bean referansı yok.
      */
     @Test
     void anExpressionCannotReachTypesOrStaticMethods(CapturedOutput output) {

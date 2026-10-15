@@ -146,8 +146,8 @@ class BookApiIntegrationTest implements DatabaseTest {
 
     @Test
     void listReturns400ForAFieldThatCannotBeSortedBy() {
-        // An unknown property used to fail inside the query (PropertyReferenceException, 500); a
-        // path into a relation would sort on data the API does not show.
+        // Bilinmeyen özellik sorgunun içinde 500 veriyordu; ilişkiye giden yol API'nin göstermediği
+        // veriye göre sıralardı.
         for (String sort : List.of("price", "author.biography", "categories.name")) {
             MvcTestResult result = mvc.get().uri(BOOKS + "?sort={sort}", sort).exchange();
 
@@ -162,9 +162,8 @@ class BookApiIntegrationTest implements DatabaseTest {
     }
 
     /**
-     * PostgreSQL cannot store U+0000 in a text column at all ("invalid byte sequence", SQLState
-     * 22021), and it refuses it in a query parameter too. That is a value the client sent, so 400,
-     * not the 409 of a conflict with other rows.
+     * PostgreSQL metin sütununda U+0000 saklayamaz ve sorgu parametresinde de reddeder (SQLState
+     * 22021). İstemcinin değeri, yani 409 değil 400.
      */
     @Test
     void aNulCharacterInATitleIs400() {
@@ -235,8 +234,8 @@ class BookApiIntegrationTest implements DatabaseTest {
                         "{\"isbn\": \"12-34\", \"title\": \"\", \"totalCopies\": -1, \"pageCount\": 0}");
 
         assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
-        // No "title": since step 8 a new book given with an ISBN may leave the title out (it comes
-        // from Open Library). PUT still requires it; BookIsbnLookupTest covers both.
+        // "title" yok: ISBN ile gelen yeni kitapta başlık boş olabilir (Open Library'den gelir).
+        // PUT hâlâ ister; BookIsbnLookupTest ikisini de kapsar.
         assertThat(result)
                 .bodyJson()
                 .extractingPath("$.errors[*].field")
@@ -266,7 +265,7 @@ class BookApiIntegrationTest implements DatabaseTest {
                 .extractingPath("$.categories[*].name")
                 .asArray()
                 .containsExactly("Classics");
-        // PUT replaces the whole book: the ISBN that was not sent is now empty.
+        // PUT kitabın tamamını değiştirir: gönderilmeyen ISBN artık boş.
         assertThat(result).bodyJson().extractingPath("$.isbn").isNull();
     }
 
@@ -283,7 +282,7 @@ class BookApiIntegrationTest implements DatabaseTest {
     @Test
     void updateReturns409WhenTheTotalWouldDropBelowTheCopiesOnLoan() {
         long id = idOf(post(BOOKS, bookJson("The Hobbit", null, 3, authorId)));
-        // Two copies out on loan; the loan endpoints come later in this step.
+        // İki kopya ödünçte; ödünç kaydı yerine sayı doğrudan yazılır.
         jdbcTemplate.update("update books set available_copies = 1 where id = ?", id);
 
         MvcTestResult result = put(id, bookJson("The Hobbit", null, 1, authorId));
@@ -321,8 +320,7 @@ class BookApiIntegrationTest implements DatabaseTest {
             post(BOOKS, bookJson(title, null, 1, authorId));
         }
 
-        // Unescaped, "50%" would match "500 Days" and "A_B" would match "AxB": in LIKE, % is
-        // any text and _ is any single character.
+        // Kaçırılmasa "50%", "500 Days" ile, "A_B" de "AxB" ile eşleşirdi.
         assertThat(titles(BOOKS + "?title={title}", "50%")).containsExactly("50% Off");
         assertThat(titles(BOOKS + "?title={title}", "a_b")).containsExactly("A_B");
     }
@@ -387,8 +385,8 @@ class BookApiIntegrationTest implements DatabaseTest {
 
     @Test
     void searchReturns400ForAFilterValueOfTheWrongType() {
-        // The record is built through its constructor, so a value that cannot be converted
-        // stops the binding: only that field is reported, the others are not validated.
+        // Record constructor ile kurulur; çevrilemeyen değer binding'i durdurur, sadece o alan
+        // raporlanır.
         MvcTestResult result = mvc.get().uri(BOOKS + "?yearFrom=abc&yearTo=0").exchange();
 
         assertProblem(result, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
@@ -408,7 +406,7 @@ class BookApiIntegrationTest implements DatabaseTest {
         assertThat(result).hasStatus(HttpStatus.OK);
         assertThat(result).bodyJson().extractingPath("$.pageCount").isEqualTo(320);
         assertThat(result).bodyJson().extractingPath("$.publishedYear").isEqualTo(1937);
-        // Not sent, so not changed. PUT would have cleared the ISBN and the categories.
+        // Gönderilmedi, değişmedi. PUT ISBN'i ve kategorileri silerdi.
         assertThat(result).bodyJson().extractingPath("$.title").isEqualTo("The Hobbit");
         assertThat(result).bodyJson().extractingPath("$.isbn").isEqualTo("9780547928227");
         assertThat(result).bodyJson().extractingPath("$.totalCopies").isEqualTo(1);
@@ -425,7 +423,7 @@ class BookApiIntegrationTest implements DatabaseTest {
 
         MvcTestResult result = patch(id, "{\"isbn\": null, \"title\": null}");
 
-        // A field cannot be cleared with PATCH: null and a missing field mean the same here.
+        // PATCH ile alan silinemez: null ve gelmeyen alan aynı anlamda.
         assertThat(result).hasStatus(HttpStatus.OK);
         assertThat(result).bodyJson().extractingPath("$.isbn").isEqualTo("9780547928227");
         assertThat(result).bodyJson().extractingPath("$.title").isEqualTo("The Hobbit");
@@ -447,7 +445,7 @@ class BookApiIntegrationTest implements DatabaseTest {
                 .bodyJson()
                 .extractingPath("$.author.name")
                 .isEqualTo("Christopher Tolkien");
-        // An empty list is a value: it removes every category.
+        // Boş liste bir değerdir: tüm kategorileri kaldırır.
         assertThat(result).bodyJson().extractingPath("$.categories").asArray().isEmpty();
         assertThat(result).bodyJson().extractingPath("$.totalCopies").isEqualTo(4);
         assertThat(result).bodyJson().extractingPath("$.availableCopies").isEqualTo(4);
@@ -546,7 +544,7 @@ class BookApiIntegrationTest implements DatabaseTest {
         assertThat(post(BOOKS, json)).hasStatus(HttpStatus.CREATED);
     }
 
-    /** The titles on the first page of a search, in the order the API returned them. */
+    /** Aramanın ilk sayfasındaki başlıklar, API'nin döndüğü sırayla. */
     private List<String> titles(String uriTemplate, Object... uriVariables) {
         MvcTestResult result = mvc.get().uri(uriTemplate, uriVariables).exchange();
         assertThat(result).hasStatus(HttpStatus.OK);

@@ -12,7 +12,7 @@ import org.springframework.boot.validation.autoconfigure.ValidationAutoConfigura
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
-/** The application's clock runs in library.time-zone, whatever the machine's time zone is. */
+/** Uygulama saati makinenin değil library.time-zone'un dilimindedir. */
 class ClockConfigTest {
 
     private final ApplicationContextRunner runner =

@@ -14,21 +14,11 @@ import javax.crypto.SecretKey;
 import org.springframework.stereotype.Component;
 
 /**
- * Issues and reads the access tokens: JWTs (JSON Web Tokens, RFC 7519) signed with HMAC-SHA256.
+ * HMAC-SHA256 ile imzalı JWT'leri üretir ve okur.
  *
- * <p>A token is three Base64URL parts joined by dots: a header ({@code {"alg":"HS256"}}), the
- * claims ({@code {"iss":"library-api","sub":"12","role":"MEMBER","iat":...,"exp":...}}) and a
- * signature over the first two. Anyone can read the claims; only the holder of the secret can
- * produce a signature that matches them, so a changed role or user id is detected.
- *
- * <p>The claims hold the user id and the role, nothing personal: a token may end up in logs or
- * browser storage. Reading a token does not touch the database. That makes every request cheaper,
- * but a token stays valid until it expires even if the user's role changes in the meantime; the
- * short lifetime limits that, and rules that depend on the current state (LoanService: only members
- * borrow) check the database themselves.
- *
- * <p>A {@code @Component}, not a {@code @Service}: it runs on every request with a token, and the
- * timing aspect (which wraps services) would add a log line to each.
+ * <p>Claim'lerde sadece kullanıcı id'si ve rol var. Okurken veritabanına bakılmaz: rol değişse de
+ * token süresi dolana kadar geçerlidir, güncel durum gereken kurallar veritabanına kendisi bakar.
+ * {@code @Service} değil {@code @Component}: süre aspect'i her isteğe log satırı eklemesin.
  */
 @Component
 public class JwtService {
@@ -49,11 +39,11 @@ public class JwtService {
         this.key = signingKey(properties.secret());
         this.parser =
                 Jwts.parser()
-                        // Only tokens signed with this key; an unsigned token ("alg": "none") or
-                        // one signed with a key pair is refused.
+                        // Sadece bu anahtarla imzalı token'lar; "alg": "none" ve anahtar çiftiyle
+                        // imzalı olanlar reddedilir.
                         .verifyWith(key)
                         .requireIssuer(properties.issuer())
-                        // "exp" is checked against the application's clock, as everything else.
+                        // "exp" de uygulamanın saatine göre kontrol edilir.
                         .clock(() -> Date.from(clock.instant()))
                         .build();
     }
@@ -74,9 +64,9 @@ public class JwtService {
     }
 
     /**
-     * Checks the signature, the issuer and the expiry, then reads the user.
+     * İmzayı, issuer'ı ve süreyi kontrol edip kullanıcıyı okur.
      *
-     * @throws InvalidTokenException whatever is wrong with the token
+     * @throws InvalidTokenException token'da ne sorun olursa
      */
     public AuthenticatedUser parse(String token) {
         try {
@@ -87,15 +77,15 @@ public class JwtService {
             }
             return new AuthenticatedUser(Long.valueOf(claims.getSubject()), Role.valueOf(role));
         } catch (JwtException | IllegalArgumentException e) {
-            // IllegalArgumentException: an empty token, a subject that is not a number, an
-            // unknown role. Signed by us, so these would be bugs, but they must not become 500s.
+            // Boş token, sayı olmayan subject, bilinmeyen rol: bizim imzamızla olmamalı ama 500'e
+            // de dönmemeli.
             throw new InvalidTokenException();
         }
     }
 
     private static SecretKey signingKey(String secret) {
         try {
-            // Keys.hmacShaKeyFor refuses keys shorter than 256 bits, the size of the HS256 hash.
+            // hmacShaKeyFor 256 bitten kısa anahtarı reddeder.
             return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
         } catch (RuntimeException e) {
             throw new IllegalStateException(

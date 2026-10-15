@@ -38,9 +38,8 @@ public class AuthService {
     private final JwtProperties jwtProperties;
 
     /**
-     * Creates a member. The address is stored in lower case, so "Ada@Example.com" and
-     * "ada@example.com" are one account. Two registrations with the same address at the same time
-     * both pass the check; the unique constraint then rejects the second (409 DATA_CONFLICT).
+     * Üye oluşturur. E-posta küçük harfle saklanır; aynı anda gelen iki kayıttan ikincisini unique
+     * constraint reddeder (409).
      */
     @Auditable(action = AuditAction.USER_REGISTER, target = "#result?.id()")
     @Transactional
@@ -60,8 +59,8 @@ public class AuthService {
     }
 
     /**
-     * Checks the password and issues a token. A wrong password and an unknown address both end in
-     * BadCredentialsException, which GlobalExceptionHandler answers with 401 INVALID_CREDENTIALS.
+     * Şifreyi kontrol edip token verir. Yanlış şifre de bilinmeyen e-posta da 401
+     * INVALID_CREDENTIALS olur.
      */
     @Auditable(action = AuditAction.LOGIN)
     public TokenResponse login(LoginRequest request) {

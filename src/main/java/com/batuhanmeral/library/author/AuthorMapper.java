@@ -15,7 +15,7 @@ public interface AuthorMapper {
 
     AuthorResponse toResponse(Author author);
 
-    // Author.books has a getter but no setter; MapStruct would add to the list through the getter.
+    // Setter yok; MapStruct getter üzerinden listeye eklemeye çalışırdı.
     @Mapping(target = "books", ignore = true)
     Author toEntity(AuthorRequest request);
 

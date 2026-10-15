@@ -47,9 +47,8 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 
 /**
- * The client against a fake Open Library. {@code @RestClientTest} starts only what a REST client
- * needs (RestClient support, JSON converters) plus the listed beans, and binds every RestClient
- * built from the auto-configured customizers to a MockRestServiceServer: no request leaves the JVM.
+ * Sahte bir Open Library'ye karşı istemci. {@code @RestClientTest} her RestClient'ı
+ * MockRestServiceServer'a bağlar, istek JVM'den çıkmaz.
  */
 @RestClientTest(
         components = OpenLibraryClient.class,
@@ -190,7 +189,7 @@ class OpenLibraryClientTest {
 
         OpenLibraryBook book = client.findByIsbn("9780441172719").orElseThrow();
 
-        // Jackson reads the number 1988 as the text "1988" for a String field: still a year.
+        // Jackson 1988 sayısını String alan için "1988" okur: yine bir yıl.
         assertThat(book).isEqualTo(new OpenLibraryBook(null, null, 1988, null));
     }
 
@@ -249,7 +248,7 @@ class OpenLibraryClientTest {
 
     @Test
     void cuttingATitleDoesNotSplitACharacter() {
-        // 254 letters and an emoji, which takes two UTF-16 units: 256 units in all.
+        // 254 harf ve iki UTF-16 birimlik bir emoji: toplam 256 birim.
         String title = "a".repeat(254) + "\uD83D\uDCD6";
         server.expect(requestTo(DUNE_URL))
                 .andRespond(
@@ -303,7 +302,7 @@ class OpenLibraryClientTest {
         }
     }
 
-    /** Polls until the given number of calls have reached the fake server and wait there. */
+    /** Verilen sayıda çağrı sahte sunucuya ulaşıp bekleyene kadar yoklar. */
     private static void waitUntil(AtomicInteger arrived, int count) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (arrived.get() < count) {

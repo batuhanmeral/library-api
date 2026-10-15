@@ -7,14 +7,8 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Counts loans and returns for /actuator/metrics (library.loans.borrowed, library.loans.returned).
- * Micrometer's MeterRegistry is what Spring Boot's metrics are made of; a monitoring system
- * (Prometheus, Datadog, ...) reads the same counters once its registry is on the classpath.
- *
- * <p>Like the confirmation emails, the counters listen to the loan events after the commit: a
- * borrow that is rolled back or retried counts once, for the attempt that committed. The counters
- * are registered when the bean is created, so they show 0 before the first loan instead of being
- * missing.
+ * Ödünç ve iadeleri /actuator/metrics için sayar (library.loans.borrowed, library.loans.returned).
+ * Olayları commit'ten sonra dinler, tekrarlanan ödünç bir kez sayılır.
  */
 @Component
 class LoanMetrics {

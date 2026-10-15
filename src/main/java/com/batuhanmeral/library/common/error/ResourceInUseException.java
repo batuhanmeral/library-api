@@ -1,6 +1,6 @@
 package com.batuhanmeral.library.common.error;
 
-/** Thrown when a resource cannot be deleted because other resources still point to it. */
+/** Başka kaynaklar hâlâ ona bağlı olduğu için silinemeyen kaynak. */
 public class ResourceInUseException extends ApiException {
 
     public ResourceInUseException(String message) {

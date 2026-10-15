@@ -4,10 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-/**
- * The SMS channel. Only an injection point with {@code @Qualifier("sms")} gets it; asking by type
- * alone gives the {@code @Primary} email service. Logs the SMS instead of sending it.
- */
+/** SMS kanalı; sadece {@code @Qualifier("sms")} isteyen alır. SMS'i göndermez, log'lar. */
 @Slf4j
 @Service
 @Qualifier("sms")

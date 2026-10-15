@@ -38,7 +38,7 @@ class LogTextTest {
 
     @Test
     void unicodeLineSeparatorsAndDirectionOverridesBecomeSpacesToo() {
-        // NEL (a C1 control), line and paragraph separators, right-to-left override, BOM.
+        // NEL, satır ve paragraf ayırıcıları, sağdan sola override, BOM.
         assertThat(LogText.oneLine("a\u0085b\u2028c\u2029d\u202Ee\uFEFFf"))
                 .isEqualTo("a b c d e f");
         assertThat(LogText.oneLine("Çağlar Kitabı")).isEqualTo("Çağlar Kitabı");

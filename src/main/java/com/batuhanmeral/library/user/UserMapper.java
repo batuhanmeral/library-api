@@ -5,10 +5,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.MappingConstants;
 import org.mapstruct.ReportingPolicy;
 
-/**
- * Entity to response only. ERROR on unmapped targets; the password is not a target field, so it
- * cannot be copied by mistake.
- */
+/** Sadece entity'den cevaba. Şifre hedef alan değil, yanlışlıkla kopyalanamaz. */
 @Mapper(
         componentModel = MappingConstants.ComponentModel.SPRING,
         unmappedTargetPolicy = ReportingPolicy.ERROR)

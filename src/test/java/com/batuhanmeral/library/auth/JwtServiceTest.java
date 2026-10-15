@@ -15,7 +15,7 @@ import java.util.Date;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
 
-/** Plain unit test: JwtService needs only its settings and a clock. */
+/** Düz birim testi: JwtService'e sadece ayarlar ve saat lazım. */
 class JwtServiceTest {
 
     private static final String SECRET = base64("0123456789abcdef0123456789abcdef");
@@ -39,7 +39,7 @@ class JwtServiceTest {
     void theTokenHoldsTheIdAndTheRoleButNoPersonalData() {
         String token = jwt.issue(new AuthenticatedUser(42L, Role.ADMIN)).token();
 
-        // A JWT is signed, not encrypted: anyone can read the middle part.
+        // JWT imzalıdır, şifreli değil: ortadaki kısmı herkes okur.
         String payload =
                 new String(
                         Base64.getUrlDecoder().decode(token.split("\\.")[1]),
@@ -97,7 +97,7 @@ class JwtServiceTest {
 
     @Test
     void anUnsignedTokenIsRejected() {
-        // "alg": "none": a token with no signature at all, a classic attack on careless parsers.
+        // "alg": "none": imzasız token, dikkatsiz parser'lara karşı klasik saldırı.
         String unsigned =
                 Jwts.builder()
                         .issuer("library-api")

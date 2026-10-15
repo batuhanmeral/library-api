@@ -262,10 +262,7 @@ class CategoryApiIntegrationTest implements DatabaseTest {
                 "MALFORMED_REQUEST");
     }
 
-    /**
-     * Spring's own detail repeats the value ("Failed to convert 'id' with value: 'abc<b>'"). The
-     * body is JSON, so a browser does not run it, but nothing the client sent belongs in the text.
-     */
+    /** Spring'in mesajı değeri tekrarlar; istemcinin gönderdiği hiçbir şey metne girmemeli. */
     @Test
     void aValueThatIsNotANumberIsNotRepeatedInTheDetail() {
         MvcTestResult result = mvc.get().uri(CATEGORIES + "/{id}", "abc<b>").exchange();
@@ -289,8 +286,8 @@ class CategoryApiIntegrationTest implements DatabaseTest {
 
     @Test
     void unknownPathReturns404Problem() {
-        // A path below a public prefix reaches Spring MVC, which finds no handler. Other unknown
-        // paths are refused by the security rules first (SecurityRulesTest).
+        // Herkese açık önekin altındaki yol Spring MVC'ye ulaşır ve handler bulunmaz; diğer
+        // bilinmeyen yolları security kuralları reddeder.
         assertProblem(
                 mvc.get().uri(CATEGORIES + "/1/does-not-exist").exchange(),
                 HttpStatus.NOT_FOUND,

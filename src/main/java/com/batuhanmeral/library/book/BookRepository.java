@@ -9,23 +9,19 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 /**
- * Methods that return books fetch their author with the same query ({@code @EntityGraph}). Without
- * it, reading the lazy author of N books runs N more queries (the N+1 problem).
+ * Kitap dönen metodlar yazarı aynı sorguda getirir ({@code @EntityGraph}), N+1 olmasın.
  *
- * <p>Paged methods do not fetch the categories. A collection fetch in a paged query returns one row
- * per book and category, so LIMIT cannot count books. Hibernate 7 then pages in a subquery when it
- * can; when it cannot (for example when sorting by a category), it loads every matching row and
- * cuts the page in memory. The categories of a page are loaded in one extra query instead, see
- * {@code @BatchSize} on {@link Book#getCategories()}.
+ * <p>Sayfalı metodlar kategorileri getirmez: koleksiyon fetch'i LIMIT'i bozar. Kategoriler tek ek
+ * sorguyla yüklenir ({@code @BatchSize}).
  */
 public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
 
-    /** Search with optional filters, see {@link BookSpecifications}. */
+    /** İsteğe bağlı filtrelerle arama, bkz. {@link BookSpecifications}. */
     @Override
     @EntityGraph(attributePaths = "author")
     Page<Book> findAll(Specification<Book> specification, Pageable pageable);
 
-    /** A single book: fetching its categories in the same query is safe here. */
+    /** Tek kitap: kategorileri aynı sorguda getirmek burada güvenli. */
     @Override
     @EntityGraph(attributePaths = {"author", "categories"})
     Optional<Book> findById(Long id);

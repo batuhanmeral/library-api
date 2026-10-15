@@ -32,20 +32,17 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * The cache against a real Redis, the same image as docker-compose.yml. CachingTest checks with an
- * in-memory cache what is cached and when it is dropped; this class checks what only Redis shows:
- * the stored bytes (plain JSON), the time to live Redis keeps for each key, and a Redis that stops
- * answering.
+ * Gerçek Redis'e karşı cache. Sadece Redis'in gösterdiklerini sınar: saklanan baytlar (düz JSON),
+ * anahtar başına TTL ve cevap vermeyen Redis.
  *
- * <p>Testcontainers has no Redis class of its own; a GenericContainer with the port is enough.
- * {@code name = "redis"} tells Spring Boot which connection details to build from it (the host and
- * the mapped port go to spring.data.redis.*).
+ * <p>Testcontainers'ın Redis sınıfı yok; portlu GenericContainer yeter. {@code name = "redis"}
+ * Spring Boot'a hangi bağlantı bilgisini kuracağını söyler.
  */
 @SpringBootTest(properties = "spring.cache.type=redis")
 @AutoConfigureMockMvc
 class RedisCacheTest implements DatabaseTest {
 
-    /** redis:8.10.3-alpine, pinned by digest like in docker-compose.yml. */
+    /** redis:8.10.3-alpine, docker-compose.yml'deki gibi digest ile sabit. */
     @ServiceConnection(name = "redis")
     static final GenericContainer<?> REDIS =
             new GenericContainer<>(
@@ -94,16 +91,16 @@ class RedisCacheTest implements DatabaseTest {
         assertThat(stored).isNotNull();
         assertThat((String) JsonPath.read(stored, "$.title")).isEqualTo("Dune");
         assertThat((String) JsonPath.read(stored, "$.author.name")).isEqualTo("Frank Herbert");
-        // Typed per cache: no class name in the value for a writer of Redis to choose.
+        // Cache başına tip: değerde Redis'e yazanın seçebileceği sınıf adı yok.
         assertThat(stored).doesNotContain("@class").doesNotContain("com.batuhanmeral");
-        // library.cache.books-ttl is 10 minutes; Redis counts it down by itself.
+        // library.cache.books-ttl 10 dakika; Redis kendisi geri sayar.
         assertThat(redis.getExpire(key)).isBetween(1L, Duration.ofMinutes(10).toSeconds());
     }
 
     @Test
     void theSecondReadComesFromRedisAndAChangeThroughTheApiDropsIt() {
         assertThat(titleOf(getBook())).isEqualTo("Dune");
-        // A change behind the application's back: the cached entry does not see it.
+        // Uygulamanın arkasından değişiklik: cache'teki kayıt görmez.
         jdbcTemplate.update("update books set title = 'Changed in SQL' where id = ?", bookId);
 
         assertThat(titleOf(getBook())).isEqualTo("Dune");
@@ -133,7 +130,9 @@ class RedisCacheTest implements DatabaseTest {
                 .isBetween(Duration.ofMinutes(10).toSeconds() + 1, Duration.ofHours(1).toSeconds());
     }
 
-    /** spring.cache.redis.enable-statistics: hits and misses per cache, for /actuator/metrics. */
+    /**
+     * spring.cache.redis.enable-statistics: /actuator/metrics için cache başına isabet ve ıskalar.
+     */
     @Test
     void hitsAndMissesAreCountedPerCache() {
         double hits = gets("hit");
@@ -148,9 +147,8 @@ class RedisCacheTest implements DatabaseTest {
     }
 
     /**
-     * Redis is paused (the process is frozen, the port stays open), so commands time out instead of
-     * failing at once: the worst case. The request still succeeds from the database after the
-     * client gives up waiting (spring.data.redis.timeout, 500 ms).
+     * Redis duraklatılır (port açık kalır), komutlar timeout'a düşer: en kötü durum. İstek 500 ms
+     * sonra veritabanından cevaplanır.
      */
     @Test
     void aRedisThatStopsAnsweringSlowsReadsDownButDoesNotBreakThem() {

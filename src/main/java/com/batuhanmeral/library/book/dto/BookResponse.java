@@ -3,7 +3,7 @@ package com.batuhanmeral.library.book.dto;
 import java.time.Instant;
 import java.util.List;
 
-/** A book as the API returns it, with a short summary of its author and categories. */
+/** API'nin döndüğü kitap, yazar ve kategori özetiyle. */
 public record BookResponse(
         Long id,
         String isbn,

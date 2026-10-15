@@ -22,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Learning tests: how Spring's @Transactional behaves. The bean below exists only for these tests.
- * Each test commits for real, so it cleans the categories table first.
+ * Öğrenme testleri: Spring'in @Transactional davranışı. Her test gerçekten commit eder, önce
+ * tabloyu temizler.
  */
 @SpringBootTest
 class TransactionalBehaviourTest implements DatabaseTest {
@@ -50,7 +50,7 @@ class TransactionalBehaviourTest implements DatabaseTest {
         assertThatThrownBy(() -> demo.saveThenThrowChecked("Science"))
                 .isInstanceOf(Exception.class);
 
-        // The method failed, but what it saved is in the database.
+        // Metod hata verdi, ama kaydettiği veritabanında.
         assertThat(categoryCount()).isEqualTo(1);
     }
 
@@ -66,8 +66,7 @@ class TransactionalBehaviourTest implements DatabaseTest {
     void aCallToThisSkipsTheProxySoRequiresNewIsIgnored() {
         demo.outerCallingInnerDirectly();
 
-        // inner() asks for a new transaction but runs in outer()'s: the call never went
-        // through the proxy that would have started one.
+        // inner() yeni transaction ister ama outer()'ınkinde çalışır: çağrı proxy'den geçmedi.
         assertThat(demo.transactionNames()).hasSize(2);
         assertThat(demo.transactionNames().get(1)).isEqualTo(demo.transactionNames().get(0));
     }
@@ -102,7 +101,7 @@ class TransactionalBehaviourTest implements DatabaseTest {
 
         private final CategoryRepository categoryRepository;
 
-        /** This bean's own proxy. @Lazy breaks the cycle of a bean that depends on itself. */
+        /** Bean'in kendi proxy'si; @Lazy kendine bağımlı bean döngüsünü kırar. */
         private final Demo self;
 
         Demo(CategoryRepository categoryRepository, @Lazy Demo self) {
@@ -157,10 +156,7 @@ class TransactionalBehaviourTest implements DatabaseTest {
             categoryRepository.save(new Category(name, null));
         }
 
-        /**
-         * Through a method, not the field: the test holds the CGLIB proxy, a subclass instance
-         * whose own fields are never set. Only method calls reach the real object.
-         */
+        /** Alan değil metod: test CGLIB proxy'sini tutar, onun alanları hiç dolmaz. */
         public List<String> transactionNames() {
             return transactionNames;
         }

@@ -27,8 +27,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * The Actuator endpoints and who may see them: health and info are public (a load balancer and a
- * container runtime ask without a token), the details of health and the metrics are for admins.
+ * Actuator uçları ve kimin görebileceği: health ve info herkese açık, health detayları ve metrikler
+ * admin için.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -80,7 +80,7 @@ class ActuatorTest implements DatabaseTest {
         assertThat(result).bodyJson().doesNotHavePath("$.components");
     }
 
-    /** The groups a container runtime or Kubernetes asks: is the process alive, can it serve. */
+    /** Container runtime'ın sorduğu gruplar: süreç canlı mı, hizmet verebilir mi. */
     @Test
     void livenessAndReadinessHaveTheirOwnPaths() {
         assertThat(mvc.get().uri("/actuator/health/liveness").exchange())
@@ -95,8 +95,8 @@ class ActuatorTest implements DatabaseTest {
                         .header(HttpHeaders.AUTHORIZATION, TestTokens.admin(jwt))
                         .exchange();
         assertThat(readiness).hasStatus(HttpStatus.OK);
-        // Ready means the database answers. Redis is left out on purpose: without the cache the
-        // application still serves every request, only slower.
+        // Hazır, veritabanı cevap veriyor demek. Redis bilerek dışarıda: cache olmadan da her istek
+        // çalışır.
         assertThat(readiness).bodyJson().extractingPath("$.components.db.status").isEqualTo("UP");
         assertThat(readiness).bodyJson().doesNotHavePath("$.components.redis");
     }
@@ -132,7 +132,7 @@ class ActuatorTest implements DatabaseTest {
                 .contains("library.loans.borrowed", "library.loans.returned");
     }
 
-    /** env, beans and the rest would show settings, memory and internals: not even admins. */
+    /** env, beans ve diğerleri ayarları ve iç yapıyı gösterir: admin'e bile kapalı. */
     @ParameterizedTest
     @ValueSource(
             strings = {
@@ -153,7 +153,7 @@ class ActuatorTest implements DatabaseTest {
                 .hasStatus(HttpStatus.NOT_FOUND);
     }
 
-    /** Health is public, its parts are not: an anonymous caller cannot ask for one by name. */
+    /** Health açık, parçaları değil: anonim çağıran adıyla soramaz. */
     @ParameterizedTest
     @ValueSource(strings = {"/actuator/health/db", "/actuator/health/diskSpace"})
     void anAnonymousCallerCannotReadAHealthComponent(String path) {
@@ -173,7 +173,7 @@ class ActuatorTest implements DatabaseTest {
                         .getId();
 
         assertThat(borrow(bookId, memberId)).hasStatus(HttpStatus.CREATED);
-        // The second attempt is refused (no copy left) and does not count.
+        // İkinci deneme reddedilir (kopya kalmadı) ve sayılmaz.
         assertThat(borrow(bookId, memberId)).hasStatus(HttpStatus.CONFLICT);
 
         assertThat(borrowedCount()).isEqualTo(before + 1);

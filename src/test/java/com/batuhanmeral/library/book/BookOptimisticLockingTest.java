@@ -17,9 +17,8 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Two transactions change the same book. Without @Version the second commit would overwrite the
- * first one's change (a lost update). Each transaction here is real and commits, so this test does
- * not use @DataJpaTest's single rolled-back transaction.
+ * İki transaction aynı kitabı değiştirir; @Version olmasa ikinci commit ilkinin değişikliğini
+ * ezerdi (lost update). Transaction'lar gerçekten commit edilir.
  */
 @SpringBootTest
 class BookOptimisticLockingTest implements DatabaseTest {
@@ -57,16 +56,16 @@ class BookOptimisticLockingTest implements DatabaseTest {
 
         assertThatThrownBy(() ->
                         outer.executeWithoutResult(status -> {
-                            // Transaction A reads the book: version 0, 2 copies available.
+                            // A transaction'ı kitabı okur: version 0, 2 kopya.
                             Book seenByA = bookRepository.findById(bookId).orElseThrow();
 
-                            // Transaction B (a separate one, REQUIRES_NEW) borrows a copy and
-                            // commits: version 1, 1 copy available.
+                            // B transaction'ı (REQUIRES_NEW) bir kopya alıp commit eder: version 1,
+                            // 1 kopya.
                             inNewTransaction(() ->
                                     bookRepository.findById(bookId).orElseThrow().borrowCopy());
 
-                            // A still sees 2 copies and borrows one too. Its UPDATE says
-                            // "where id = ? and version = 0" and changes no row.
+                            // A hâlâ 2 kopya görür ve bir tane alır; UPDATE'i "version = 0" ister
+                            // ve hiçbir satırı değiştirmez.
                             seenByA.borrowCopy();
                         }))
                 .isInstanceOf(OptimisticLockingFailureException.class);

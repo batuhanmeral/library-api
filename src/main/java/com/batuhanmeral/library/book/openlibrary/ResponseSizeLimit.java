@@ -11,9 +11,8 @@ import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 
 /**
- * Refuses response bodies above a size. An edition record is a few kilobytes; a server that sends
- * megabytes (broken, or not Open Library) would otherwise be read into memory whole. The body is
- * counted while it is read, so a missing or false Content-Length does not help.
+ * Belli boyuttan büyük cevap gövdesini reddeder. Gövde okunurken sayılır, yanlış Content-Length işe
+ * yaramaz.
  */
 final class ResponseSizeLimit implements ClientHttpRequestInterceptor {
 

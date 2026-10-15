@@ -26,7 +26,7 @@ public class CategoryService {
     private final BookRepository bookRepository;
     private final CategoryMapper categoryMapper;
 
-    /** The whole list is one entry; any change of a category drops it. */
+    /** Listenin tamamı tek kayıt; herhangi bir kategori değişikliği onu siler. */
     @Cacheable(cacheNames = CacheNames.CATEGORIES, key = CacheNames.ALL)
     public List<CategoryResponse> findAll() {
         return categoryRepository.findAll().stream().map(categoryMapper::toResponse).toList();
@@ -47,7 +47,7 @@ public class CategoryService {
         return categoryMapper.toResponse(saved);
     }
 
-    /** Books show their categories' names, so every cached book may hold the old name. */
+    /** Kitaplar kategori adlarını gösterir, cache'teki her kitap eski adı tutuyor olabilir. */
     @Auditable(action = AuditAction.CATEGORY_UPDATE, target = "#id")
     @Caching(
             evict = {
@@ -61,8 +61,8 @@ public class CategoryService {
             throw nameTaken(request.name());
         }
         categoryMapper.updateEntity(request, category);
-        // The entity is managed, so the change is saved without save() (dirty checking). Flush
-        // now so that the UPDATE runs and updatedAt is set before the response is built.
+        // Entity managed, save() gerekmez (dirty checking); flush, cevapta updatedAt dolu olsun
+        // diye.
         categoryRepository.flush();
         return categoryMapper.toResponse(category);
     }

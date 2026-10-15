@@ -20,23 +20,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/users")
 public class UserController {
 
-    /** No "password": sorting by a column leaks its order, even when the column is not shown. */
+    /** "password" yok: bir sütuna göre sıralamak, sütun görünmese de sırasını sızdırır. */
     private static final SortableFields SORTABLE =
             SortableFields.of("id", "email", "fullName", "createdAt");
 
     private final UserService userService;
 
-    /**
-     * The caller's own profile. {@code @AuthenticationPrincipal} hands over the principal that
-     * JwtAuthenticationFilter put into the SecurityContext; there is no id in the path to tamper
-     * with.
-     */
+    /** Çağıranın kendi profili; yolda değiştirilebilecek id yok. */
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal AuthenticatedUser user) {
         return userService.findById(user.id());
     }
 
-    /** Admins only (SecurityConfig). */
+    /** Sadece admin (SecurityConfig). */
     @GetMapping
     public PageResponse<UserResponse> findAll(
             @ParameterObject @PageableDefault(sort = "id") Pageable pageable) {

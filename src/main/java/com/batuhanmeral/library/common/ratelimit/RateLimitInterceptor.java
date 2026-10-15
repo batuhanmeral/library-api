@@ -5,12 +5,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Counts each request to the paths it is registered for (RateLimitConfig) and refuses the ones over
- * the limit before the controller runs: a refused login checks no password, so it costs no BCrypt
- * work and tells nothing about the password.
- *
- * <p>The exception goes to GlobalExceptionHandler like one from a controller: DispatcherServlet
- * hands exceptions from preHandle to the same exception resolvers.
+ * Kayıtlı yollara gelen istekleri sayar ve sınırı aşanları controller'dan önce reddeder; reddedilen
+ * giriş şifre kontrol etmez.
  */
 class RateLimitInterceptor implements HandlerInterceptor {
 

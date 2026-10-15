@@ -16,10 +16,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
-/**
- * The aspect without a Spring context: AspectJProxyFactory builds the same kind of proxy Spring
- * builds for a bean, around a plain object, with only this aspect in it.
- */
+/** Spring context'i olmadan aspect: AspectJProxyFactory Spring'in kurduğu türden proxy kurar. */
 @ExtendWith(OutputCaptureExtension.class)
 class ExecutionTimeAspectTest {
 
@@ -75,7 +72,7 @@ class ExecutionTimeAspectTest {
                 .doesNotContain("boom");
     }
 
-    /** The pointcut picks classes annotated with {@code @Service}; other beans are left alone. */
+    /** Pointcut sadece {@code @Service} sınıflarını seçer. */
     @Test
     void aClassThatIsNotAServiceIsNotTimed(CapturedOutput output) {
         proxy(new SampleComponent(), NEVER_SLOW).work();

@@ -35,17 +35,14 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/books")
 public class BookController {
 
-    /** Also used by GET /authors/{id}/books, which returns the same book representation. */
+    /** GET /authors/{id}/books de aynı sıralama kurallarını kullanır. */
     public static final SortableFields SORTABLE =
             SortableFields.of("id", "title", "publishedYear", "availableCopies", "createdAt");
 
     private final BookService bookService;
     private final BookCreationService bookCreationService;
 
-    /**
-     * The criteria record is bound from the query string (page, size and sort go to the pageable).
-     * {@code @Valid} checks it the same way as a request body.
-     */
+    /** Filtreler query string'den bağlanır; {@code @Valid} onları gövde gibi kontrol eder. */
     @SecurityRequirements
     @GetMapping
     public PageResponse<BookResponse> search(
@@ -60,10 +57,7 @@ public class BookController {
         return bookService.findById(id);
     }
 
-    /**
-     * With an ISBN, details left out of the request are filled in from Open Library (see
-     * BookCreationService); the title may then be left out too.
-     */
+    /** ISBN varsa eksik bilgiler Open Library'den gelir, başlık da boş bırakılabilir. */
     @PostMapping
     public ResponseEntity<BookResponse> create(@Valid @RequestBody NewBookRequest request) {
         BookResponse created = bookCreationService.create(request);

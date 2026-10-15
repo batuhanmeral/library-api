@@ -12,9 +12,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 /**
- * Audit columns shared by the catalog and loan tables. Spring Data's auditing listener fills them
- * just before an INSERT or UPDATE; there are no setters, so neither a client nor our own code can
- * change them.
+ * Katalog ve ödünç tablolarının ortak audit sütunları; Spring Data INSERT ve UPDATE'ten hemen önce
+ * doldurur, setter yok.
  */
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)

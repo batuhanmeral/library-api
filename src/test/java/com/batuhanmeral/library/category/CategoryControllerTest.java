@@ -20,13 +20,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-/**
- * Web layer only: the controller and the exception handler run, the service is a mock. Used for
- * failures that are hard to trigger through the real service.
- */
+/** Sadece web katmanı: controller ve exception handler çalışır, service mock'tur. */
 @WebMvcTest(CategoryController.class)
-// The security filters are left out: these tests are about the error responses of the web layer.
-// Who may call what is tested with the whole application (SecurityRulesTest).
+// Security filter'ları dışarıda; yetkiler SecurityRulesTest'te test edilir.
 @AutoConfigureMockMvc(addFilters = false)
 @ExtendWith(OutputCaptureExtension.class)
 class CategoryControllerTest {
@@ -51,8 +47,8 @@ class CategoryControllerTest {
 
     @Test
     void databaseConstraintViolationReturns409WithoutTheDatabaseMessage() {
-        // Two requests with the same name can both pass the service check; the unique
-        // constraint then rejects the second insert.
+        // Aynı adlı iki istek service kontrolünü geçebilir; ikinci insert'i unique constraint
+        // reddeder.
         when(categoryService.create(any()))
                 .thenThrow(
                         new DataIntegrityViolationException(
@@ -72,8 +68,8 @@ class CategoryControllerTest {
 
     @Test
     void databaseConstraintViolationLogsTheConstraintNameButNotTheValues(CapturedOutput output) {
-        // Database messages repeat the rejected values; a value with a line break could add a
-        // fake line to the log.
+        // Veritabanı mesajı reddedilen değeri tekrarlar; satır sonlu değer log'a sahte satır
+        // ekleyebilirdi.
         SQLException sqlException =
                 new SQLException("duplicate key: VALUES ('Science\nINJECTED fake log line')");
         when(categoryService.create(any()))

@@ -1,4 +1,4 @@
 package com.batuhanmeral.library.loan;
 
-/** What one run of the nightly overdue check did. */
+/** Gece işinin bir çalışmasının sonucu. */
 public record OverdueCheckResult(int loansMarked, int remindersSent) {}

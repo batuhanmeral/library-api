@@ -27,8 +27,7 @@ class LibraryApplicationTests implements DatabaseTest {
 
     @Test
     void scheduledJobsAreOffInTests() {
-        // library.scheduling.enabled=false (src/test/resources/config/application.yml), so
-        // @EnableScheduling is not applied and nothing registers scheduled tasks.
+        // library.scheduling.enabled=false, zamanlanmış iş kaydedilmez.
         assertThat(context.getBeanProvider(ScheduledTaskHolder.class).getIfAvailable()).isNull();
     }
 }

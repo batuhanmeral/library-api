@@ -15,7 +15,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
-/** A loan is always returned with its book and member (both to-one, safe to fetch when paging). */
+/** Ödünç hep kitabı ve üyesiyle gelir (ikisi de to-one, sayfalamada güvenli). */
 public interface LoanRepository extends JpaRepository<Loan, Long>, JpaSpecificationExecutor<Loan> {
 
     @Override
@@ -32,9 +32,8 @@ public interface LoanRepository extends JpaRepository<Loan, Long>, JpaSpecificat
             Long memberId, Long bookId, Collection<LoanStatus> statuses);
 
     /**
-     * Whether the member has a loan past its due date: one the nightly job already marked OVERDUE
-     * (step 7), or one still ACTIVE whose due date has passed since the job last ran. A derived
-     * query cannot express the "or", hence JPQL; enum constants are written with their class name.
+     * Üyenin süresi geçmiş ödüncü var mı: OVERDUE işaretlenmiş ya da hâlâ ACTIVE ama tarihi geçmiş.
+     * Derived query "or"u ifade edemez, bu yüzden JPQL.
      */
     @Query(
             """
@@ -47,9 +46,8 @@ public interface LoanRepository extends JpaRepository<Loan, Long>, JpaSpecificat
     boolean hasOverdueLoan(Long memberId, LocalDate today);
 
     /**
-     * The first {@code limit} members, by id, with an active loan past its due date. The nightly
-     * job takes this first page again and again: each batch marks its loans overdue, so they drop
-     * out of the next query. Paging with an offset would skip members instead.
+     * Süresi geçmiş aktif ödüncü olan ilk {@code limit} üye. Gece işi hep ilk sayfayı alır;
+     * işaretlenen ödünçler sonraki sorgudan düşer, offset üye atlardı.
      */
     @Query(
             """
@@ -61,8 +59,7 @@ public interface LoanRepository extends JpaRepository<Loan, Long>, JpaSpecificat
     List<Long> findMemberIdsWithLoansDueBefore(LocalDate today, Limit limit);
 
     /**
-     * Locks the loans it reads until the transaction ends. A return that reads one of them in the
-     * meantime waits before writing, so the job and the return cannot overwrite each other.
+     * Okuduğu ödünçleri transaction bitene kadar kilitler; iş ve iade birbirinin üstüne yazamaz.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Loan> findLockedByMemberIdInAndStatusAndDueDateBefore(

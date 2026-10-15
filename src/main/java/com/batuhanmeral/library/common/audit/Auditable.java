@@ -7,11 +7,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Writes an audit line for each call of the annotated method: what was done, to what, by whom and
- * whether it succeeded. AuditAspect does the writing; the annotation is only a marker it looks for.
- *
- * <p>Like {@code @Transactional}, it works through a proxy: only calls that come from another bean
- * are audited.
+ * İşaretli metodun her çağrısı için audit satırı yazdırır (AuditAspect). {@code @Transactional}
+ * gibi proxy ile çalışır: sadece başka bean'den gelen çağrılar audit edilir.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
@@ -21,9 +18,8 @@ public @interface Auditable {
     AuditAction action();
 
     /**
-     * A SpEL expression for the id of the resource, evaluated after the call. Parameters are
-     * available by name ({@code #id}), the return value as {@code #result}; {@code #result?.id()}
-     * gives null instead of an error when there is no result (the call failed). Empty: no target.
+     * Kaynak id'si için çağrıdan sonra değerlendirilen SpEL ifadesi: {@code #id}, {@code
+     * #result?.id()}. Boş: hedef yok.
      */
     String target() default "";
 }

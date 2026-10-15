@@ -10,13 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * Creates the administrator of AdminAccountProperties once the application has started, if no
- * account has that address yet. An ApplicationRunner runs after the context is ready (Flyway has
- * migrated, the beans exist) and before the application reports itself started.
- *
- * <p>An existing account is never changed: restarting must not reset a password the administrator
- * has changed since, nor make a member an administrator because the address matches. If the address
- * belongs to a member, the application does not start.
+ * Uygulama başladıktan sonra, o e-postada hesap yoksa admin hesabını oluşturur. Var olan hesaba
+ * dokunmaz; e-posta bir üyeye aitse uygulama başlamaz.
  */
 @Slf4j
 @Component
@@ -44,8 +39,8 @@ public class AdminAccountInitializer implements ApplicationRunner {
                 .ifPresentOrElse(
                         existing -> {
                             if (existing.getRole() != Role.ADMIN) {
-                                // Someone registered the address first. Going on would leave the
-                                // library without the administrator it was configured with.
+                                // Adresi önce başkası kaydetti; devam etmek kütüphaneyi admin'siz
+                                // bırakırdı.
                                 throw new IllegalStateException(
                                         "library.security.admin.email belongs to an account that"
                                                 + " is not an administrator; choose another"
@@ -62,14 +57,14 @@ public class AdminAccountInitializer implements ApplicationRunner {
                                                             ? properties.fullName()
                                                             : DEFAULT_NAME,
                                                     Role.ADMIN));
-                            // The id, not the address: the log needs no personal data.
+                            // Adres değil id: log'a kişisel veri gerekmez.
                             log.info(
                                     "Created the administrator account (user id {})",
                                     admin.getId());
                         });
     }
 
-    /** The same rules as registration; a weak password stops the application from starting. */
+    /** Kayıttaki kurallar; zayıf şifre uygulamayı başlatmaz. */
     private static void checkPassword(String password) {
         if (password == null
                 || password.length() < 8

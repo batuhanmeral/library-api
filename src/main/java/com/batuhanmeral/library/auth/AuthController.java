@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Open to everyone (SecurityConfig): these are the endpoints that give a client its token. */
+/** Herkese açık (SecurityConfig): istemci token'ını buradan alır. */
 @Tag(name = "Auth")
 @SecurityRequirements
 @RestController
@@ -25,17 +25,14 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * 201 without a Location header: there is no GET /users/{id}. The new member logs in next and
-     * reads the profile at GET /users/me.
-     */
+    /** Location header'ı yok çünkü GET /users/{id} yok; üye giriş yapıp GET /users/me'yi okur. */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
     }
 
-    /** POST, not GET: the password must not end up in a URL, which servers and proxies log. */
+    /** GET değil POST: şifre, sunucuların log'ladığı URL'ye düşmemeli. */
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);

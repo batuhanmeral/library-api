@@ -30,8 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Reads run in a read-only transaction: the mapper touches the lazy author and categories, and with
- * open-in-view turned off the persistence context lives only as long as this transaction.
+ * Okumalar read-only transaction'da: open-in-view kapalı, mapper lazy ilişkilere bu transaction
+ * içinde dokunur.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,9 +56,8 @@ public class BookService {
     }
 
     /**
-     * Cached by id. A book that does not exist throws, and nothing is cached for it. The entry is a
-     * BookResponse, not the Book entity: a detached entity with lazy associations would fail to
-     * load them later, and the response is what the API returns anyway.
+     * Id ile cache'lenir. Entity değil BookResponse saklanır: detached entity lazy ilişkilerini
+     * sonra yükleyemez.
      */
     @Cacheable(cacheNames = CacheNames.BOOKS, key = "#id")
     public BookResponse findById(Long id) {
@@ -73,8 +72,8 @@ public class BookService {
     }
 
     /**
-     * The cheap checks of {@link #create}, done before a slow call to Open Library: a taken ISBN or
-     * an unknown author fails without it. create checks again; this is not a reservation.
+     * {@link #create}'in ucuz kontrolleri, yavaş Open Library çağrısından önce. Rezervasyon
+     * değildir, create tekrar kontrol eder.
      */
     public void checkNewBook(String isbn, Long authorId) {
         if (isbn != null && bookRepository.existsByIsbn(isbn)) {
@@ -109,7 +108,7 @@ public class BookService {
         return bookMapper.toResponse(book);
     }
 
-    /** Changes only the fields that were sent; see {@link BookPatchRequest}. */
+    /** Sadece gönderilen alanları değiştirir; bkz. {@link BookPatchRequest}. */
     @Auditable(action = AuditAction.BOOK_UPDATE, target = "#id")
     @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#id")
     @Transactional
@@ -132,10 +131,7 @@ public class BookService {
         return bookMapper.toResponse(book);
     }
 
-    /**
-     * A book with loans cannot be deleted: the loans point to it (fk_loans_book) and are the
-     * library's record of who had which book. Open loans get their own message.
-     */
+    /** Ödünç geçmişi olan kitap silinemez: ödünçler ona bağlı ve kütüphanenin kaydıdır. */
     @Auditable(action = AuditAction.BOOK_DELETE, target = "#id")
     @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#id")
     @Transactional
@@ -151,12 +147,12 @@ public class BookService {
             throw new ResourceInUseException(
                     "Book with id %d has a loan history and cannot be deleted.".formatted(id));
         }
-        // Hibernate deletes the book's rows in book_categories first: Book owns that table.
+        // Hibernate önce book_categories satırlarını siler; tablo Book'a ait.
         bookRepository.deleteById(id);
     }
 
     private void applyRelationsAndCopies(BookRequest request, Book book) {
-        // Setting the owning side is what writes author_id; Author.books is not touched.
+        // author_id'yi sahip taraf yazar; Author.books'a dokunulmaz.
         book.setAuthor(getAuthor(request.authorId()));
         book.replaceCategories(getCategories(request.categoryIds()));
         book.changeTotalCopies(request.totalCopies());

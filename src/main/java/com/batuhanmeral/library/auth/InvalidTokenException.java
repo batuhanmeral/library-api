@@ -3,9 +3,8 @@ package com.batuhanmeral.library.auth;
 import org.springframework.security.core.AuthenticationException;
 
 /**
- * A request sent a bearer token that cannot be accepted: malformed, signed with another key, from
- * another issuer, or expired. The message is the same for all of them; the client learns only that
- * it needs a new token, not which check failed.
+ * Kabul edilemeyen bearer token (bozuk, başka anahtar, başka issuer, süresi dolmuş). Mesaj hepsinde
+ * aynı: istemci hangi kontrolün düştüğünü öğrenmez.
  */
 public class InvalidTokenException extends AuthenticationException {
 

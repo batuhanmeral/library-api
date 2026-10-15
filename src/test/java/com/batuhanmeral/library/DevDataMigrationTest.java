@@ -13,13 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * The dev profile also runs the scripts in db/dev. They must work on every database the migrations
- * run on and must be safe to run again.
+ * dev profili db/dev betiklerini de çalıştırır; her veritabanında çalışmalı ve tekrar
+ * çalıştırılabilmeli.
  *
- * <p>This test does not share the PostgreSQL of {@link DatabaseTest}: it adds db/dev to the Flyway
- * history, and every later context would then refuse to start ("applied migration not resolved
- * locally"), because the other tests do not have db/dev on their Flyway path. A server of its own
- * costs a few seconds and keeps the shared history clean.
+ * <p>Ortak PostgreSQL'i kullanmaz: db/dev'i Flyway geçmişine ekler, sonraki context'ler açılmazdı.
  */
 @DataJpaTest(properties = "spring.flyway.locations=classpath:db/migration,classpath:db/dev")
 class DevDataMigrationTest {
@@ -46,7 +43,7 @@ class DevDataMigrationTest {
 
     @Test
     void theDemoMemberHasAFictionalPhoneForSmsReminders() {
-        // 555-0100 to 555-0199 are reserved for fiction in the North American numbering plan.
+        // 555-0100 ile 555-0199 arası Kuzey Amerika numara planında kurgu için ayrılmış.
         assertThat(
                         jdbcTemplate.queryForObject(
                                 "select phone from users where email = 'member@example.com'",
@@ -55,10 +52,9 @@ class DevDataMigrationTest {
     }
 
     /**
-     * A database migrated before the phone was added: the script is changed, so Flyway runs it
-     * again (here forced by forgetting that it ran). It must add the phone, not a second member.
-     * Flyway works on its own connection, so this test must not hold the rows in an open test
-     * transaction.
+     * Telefon eklenmeden önce migrate edilmiş veritabanı: Flyway değişen betiği tekrar çalıştırır,
+     * ikinci üye değil telefon eklenmeli. Flyway kendi bağlantısını kullandığı için test
+     * transaction'ı yok.
      */
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)

@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Body of POST /auth/login. No format checks: a wrong address simply has no account. The password
- * has the 72-byte limit of registration, so no longer one reaches BCrypt.
+ * POST /auth/login gövdesi. Format kontrolü yok; şifrede kayıttaki 72 bayt sınırı var, BCrypt'e
+ * daha uzunu gitmez.
  */
 public record LoginRequest(
         @NotBlank @Size(max = 254) String email, @NotBlank @MaxUtf8Bytes(72) String password) {

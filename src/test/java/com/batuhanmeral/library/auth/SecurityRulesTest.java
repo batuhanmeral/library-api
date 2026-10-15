@@ -24,8 +24,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * Who may call what. Business rules are tested elsewhere; here only the answer of the security
- * layer matters: 401 without a valid token, 403 with a token of the wrong role.
+ * Kim neyi çağırabilir: sadece security katmanının cevabı (geçerli token yoksa 401, yanlış rolde
+ * 403).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -62,7 +62,7 @@ class SecurityRulesTest implements DatabaseTest {
 
         assertProblem(result, HttpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED");
         assertThat(result).headers().hasValue(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
-        // Rejected before any controller ran, and still with a request id.
+        // Hiçbir controller çalışmadan reddedildi, request id yine var.
         assertThat(result).headers().containsHeader(RequestIdFilter.HEADER);
         assertThat(result).bodyJson().extractingPath("$.instance").isEqualTo("/api/v1/categories");
     }
@@ -172,7 +172,7 @@ class SecurityRulesTest implements DatabaseTest {
 
     @Test
     void aPathThatNoRuleMentionsIsDeniedToEveryone() {
-        // Deny by default: an endpoint someone forgets to add to the rules is closed, not open.
+        // Varsayılan ret: kurallara eklenmeyi unutulan uç nokta kapalıdır.
         assertProblem(
                 mvc.get().uri("/api/v1/does-not-exist").exchange(),
                 HttpStatus.UNAUTHORIZED,
@@ -188,9 +188,8 @@ class SecurityRulesTest implements DatabaseTest {
 
     @Test
     void aPathThatCannotBeParsedIs400InsteadOf500(CapturedOutput output) {
-        // Until step 9 this path made Spring MVC fail while parsing it: five stack traces and
-        // Tomcat's HTML error page. Spring Security 7 parses the path before its firewall, so the
-        // firewall does not catch it either; MalformedPathFilter answers before both.
+        // MalformedPathFilter olmadan bu yol Spring MVC'yi düşürüyordu; Spring Security 7 yolu
+        // firewall'dan önce parse ettiği için firewall da yakalamaz.
         MvcTestResult result = getWithRawUri("/api/v1/categories/1;x=%zz");
 
         assertProblem(result, HttpStatus.BAD_REQUEST, "REQUEST_REJECTED");
@@ -201,15 +200,15 @@ class SecurityRulesTest implements DatabaseTest {
 
     @Test
     void theFirewallRejectsASemicolonInThePathWith400() {
-        // A path parameter that parses: StrictHttpFirewall refuses ";" anyway, because servers
-        // and frameworks disagree on what it means, which has been used to get around URL rules.
+        // Parse edilebilen path parametresi: StrictHttpFirewall ";" işaretini yine reddeder, URL
+        // kurallarını atlatmak için kullanıldı.
         MvcTestResult result = getWithRawUri("/api/v1/categories/1;jsessionid=abc");
 
         assertProblem(result, HttpStatus.BAD_REQUEST, "REQUEST_REJECTED");
         assertThat(result).headers().containsHeader(RequestIdFilter.HEADER);
     }
 
-    /** Sets the path as it arrives, undecoded; uri() would encode the "%" itself. */
+    /** Yolu kodu çözülmeden verir; uri() "%" işaretini kendisi kodlardı. */
     private MvcTestResult getWithRawUri(String rawUri) {
         return mvc.get()
                 .uri("/api/v1/categories/1")

@@ -8,8 +8,8 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
- * Neither service sends anything; they write a log line. The line must not hold the full address or
- * phone number (personal data in logs) and must stay one line whatever the text holds.
+ * İki service de bir şey göndermez, log satırı yazar; satır tam adresi ya da numarayı içermemeli ve
+ * tek satır kalmalı.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class NotificationServicesTest {

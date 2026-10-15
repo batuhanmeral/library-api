@@ -2,5 +2,5 @@ package com.batuhanmeral.library.auth;
 
 import java.time.Instant;
 
-/** A signed access token and the moment it stops being accepted. */
+/** İmzalı access token ve geçerliliğinin bittiği an. */
 public record AccessToken(String token, Instant expiresAt) {}

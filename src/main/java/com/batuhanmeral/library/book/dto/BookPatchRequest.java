@@ -10,12 +10,10 @@ import jakarta.validation.constraints.Size;
 import java.util.Set;
 
 /**
- * Body of PATCH /books/{id}. Every field is optional: a field that is missing or null leaves the
- * book unchanged, so a field cannot be cleared this way (use PUT for that). The rules for the
- * fields that are sent are those of {@link BookRequest}; a null value passes every constraint here,
- * so "required" becomes "not blank if sent".
+ * PATCH /books/{id} gövdesi. Her alan isteğe bağlı: gelmeyen alan değişmez, bu yolla alan silinemez
+ * (PUT kullan). Gelen alanlar {@link BookRequest} kurallarına uyar.
  *
- * @param categoryIds replaces all categories when sent; an empty list removes them all
+ * @param categoryIds gelirse tüm kategorilerin yerine geçer; boş liste hepsini kaldırır
  */
 public record BookPatchRequest(
         @Pattern(regexp = "\\d{9}[\\dX]|\\d{13}", message = "must be 10 or 13 digits") String isbn,

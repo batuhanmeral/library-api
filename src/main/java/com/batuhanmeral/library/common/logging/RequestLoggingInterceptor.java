@@ -8,18 +8,11 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Writes one log line per API call: method, path, status, duration and the controller method that
- * handled it, for example {@code GET /api/v1/books/7 returned 200 in 4 ms
- * (BookController.findById)}. The request id comes from the MDC (RequestIdFilter).
+ * Her API çağrısı için bir log satırı: metod, yol, durum, süre ve controller metodu, örn. {@code
+ * GET /api/v1/books/7 returned 200 in 4 ms (BookController.findById)}.
  *
- * <p>An interceptor, not a filter: it runs inside DispatcherServlet, after the handler has been
- * chosen, so it knows which controller method serves the request. A filter only sees the servlet
- * request. The other side of it: a request for which no handler is found (405 for a method the path
- * does not support) never reaches an interceptor.
- *
- * <p>The query string is not logged: it may hold search terms or other data that does not belong in
- * a log. The path is logged as the server received it, still percent-encoded, so it cannot hold a
- * raw line break.
+ * <p>Filter değil interceptor: hangi controller metodunun seçildiğini bilir. Query string
+ * log'lanmaz; yol kodlanmış haliyle yazılır, satır sonu içeremez.
  */
 @Slf4j
 public class RequestLoggingInterceptor implements HandlerInterceptor {
@@ -33,10 +26,7 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    /**
-     * Called after the response is complete, also when the controller threw: by then the exception
-     * handler (GlobalExceptionHandler) has set the status the client gets.
-     */
+    /** Cevap tamamlandıktan sonra, controller hata verse de çağrılır; durum artık kesindir. */
     @Override
     public void afterCompletion(
             HttpServletRequest request,

@@ -19,8 +19,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * The filter and the interceptor inside the running application: MockMvc passes requests through
- * the same filters and the same DispatcherServlet as the server would.
+ * Çalışan uygulamada filter ve interceptor; MockMvc istekleri sunucudaki aynı zincirden geçirir.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -53,8 +52,8 @@ class RequestLoggingTest implements DatabaseTest {
     void eachApiCallIsLoggedWithItsRequestIdStatusAndHandler(CapturedOutput output) {
         mvc.get().uri(CATEGORIES).header(RequestIdFilter.HEADER, "logging-test-1").exchange();
 
-        // Only the interceptor's lines: other lines of the request carry the id too, such as the
-        // SQL that another test class turned on for the whole JVM (log levels are global).
+        // Sadece interceptor'ın satırları; log seviyeleri JVM genelinde olduğu için başka satırlar
+        // da id taşıyabilir.
         assertThat(linesWith(output, "logging-test-1"))
                 .filteredOn(line -> line.contains("RequestLoggingInterceptor"))
                 .singleElement()
@@ -88,9 +87,8 @@ class RequestLoggingTest implements DatabaseTest {
     }
 
     /**
-     * The difference between the two: the filter runs for every request, the interceptor only once
-     * DispatcherServlet has found a handler. DELETE on the collection has no handler (405), so the
-     * response still gets a request id but the interceptor writes no line.
+     * Fark: filter her istekte çalışır, interceptor sadece handler bulununca. Koleksiyona DELETE
+     * 405'tir, id gelir ama satır yazılmaz.
      */
     @Test
     void aRequestWithoutAHandlerGetsAnIdButNoInterceptorLine(CapturedOutput output) {

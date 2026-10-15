@@ -22,9 +22,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * One copy of a book lent to a member. The relationships exist only on this side: neither Book nor
- * User has a list of loans; loans are found with repository queries. There are no setters: a loan
- * is created active and changes only through {@link #markOverdue} and {@link #markReturned}.
+ * Bir üyeye verilen bir kopya. İlişkiler sadece bu tarafta; setter yok, durum sadece {@link
+ * #markOverdue} ve {@link #markReturned} ile değişir.
  */
 @Entity
 @Table(name = "loans")
@@ -56,7 +55,7 @@ public class Loan extends BaseEntity {
     @Column(nullable = false, length = 20)
     private LoanStatus status;
 
-    /** A new active loan, due {@code periodDays} days after {@code loanDate}. */
+    /** {@code loanDate}'ten {@code periodDays} gün sonra dolan yeni aktif ödünç. */
     public Loan(Book book, User member, LocalDate loanDate, int periodDays) {
         this.book = book;
         this.member = member;
@@ -66,8 +65,8 @@ public class Loan extends BaseEntity {
     }
 
     /**
-     * Called by the nightly job for an active loan whose due date has passed. Anything else is a
-     * bug in the caller's query, not a rule a user can break, hence IllegalStateException.
+     * Gece işi süresi geçmiş aktif ödünç için çağırır. Başka durum çağıranın sorgusunda bir
+     * hatadır, bu yüzden IllegalStateException.
      */
     public void markOverdue(LocalDate today) {
         if (status != LoanStatus.ACTIVE || !dueDate.isBefore(today)) {
@@ -77,7 +76,7 @@ public class Loan extends BaseEntity {
         this.status = LoanStatus.OVERDUE;
     }
 
-    /** Ends the loan, active or overdue. The caller puts the copy back on the book. */
+    /** Ödüncü kapatır; kopyayı kitaba çağıran geri koyar. */
     public void markReturned(LocalDate returnDate) {
         if (status == LoanStatus.RETURNED) {
             throw new BusinessRuleException(

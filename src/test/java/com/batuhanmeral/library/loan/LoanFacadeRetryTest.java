@@ -22,8 +22,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 /**
- * The retry rules of LoanFacade in a context of two beans: the facade and the configuration that
- * turns on {@code @Retryable}. LoanService is a mock, so each "attempt" is one call to it.
+ * İki bean'lik context'te LoanFacade'in retry kuralları. LoanService mock, her "deneme" ona bir
+ * çağrı.
  */
 @SpringJUnitConfig({ResilienceConfig.class, LoanFacade.class})
 class LoanFacadeRetryTest {

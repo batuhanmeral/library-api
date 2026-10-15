@@ -6,12 +6,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * How long cache entries live, bound from {@code library.cache.*}. Every change the API makes drops
- * the entries it affects at once; the time to live only limits how long an entry can be wrong after
- * a change made some other way (directly in the database, or by a race between a read and a write).
+ * Cache kayıtlarının ömrü ({@code library.cache.*}). API'nin her değişikliği ilgili kaydı hemen
+ * siler; TTL sadece başka yoldan yapılan değişikliklerde kaydın ne kadar yanlış kalabileceğini
+ * sınırlar.
  *
- * @param booksTtl entries of GET /books/{id}
- * @param categoriesTtl the category list
+ * @param booksTtl GET /books/{id} kayıtları
+ * @param categoriesTtl kategori listesi
  */
 @ConfigurationProperties("library.cache")
 @Validated

@@ -6,14 +6,12 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * Optional filters of GET /books, bound from the query string ({@code ?title=hob&available=true}).
- * A filter that is not sent is null and does not restrict the result; the filters that are sent
- * must all match.
+ * GET /books filtreleri; gönderilmeyen filtre null'dır ve sonucu kısıtlamaz.
  *
- * @param title part of the title, case does not matter
- * @param available true: at least one copy can be borrowed; false: none can
- * @param yearFrom first publication year, inclusive
- * @param yearTo last publication year, inclusive
+ * @param title başlığın bir parçası, büyük/küçük harf fark etmez
+ * @param available true: en az bir kopya rafta; false: hiç yok
+ * @param yearFrom ilk yayın yılı, dahil
+ * @param yearTo son yayın yılı, dahil
  */
 public record BookSearchCriteria(
         @Size(max = 255) String title,

@@ -10,14 +10,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Connection to Open Library, bound from {@code library.open-library.*}. Both timeouts are
- * required: without them the JDK HTTP client waits for an answer forever, and every waiting call
- * holds a request thread of this application.
+ * Open Library bağlantısı ({@code library.open-library.*}). İki timeout da zorunlu: yoksa JDK
+ * istemcisi sonsuza kadar bekler.
  *
- * @param baseUrl where the API is, https://openlibrary.org; tests point it elsewhere
- * @param connectTimeout how long to wait for the connection
- * @param readTimeout how long to wait for the answer once connected
- * @param userAgent how the application introduces itself; no personal contact details
+ * @param baseUrl API adresi, https://openlibrary.org; testler başka yere yönlendirir
+ * @param connectTimeout bağlantı için bekleme süresi
+ * @param readTimeout bağlandıktan sonra cevap için bekleme süresi
+ * @param userAgent uygulamanın kendini tanıttığı ad; kişisel iletişim bilgisi yok
  */
 @ConfigurationProperties("library.open-library")
 @Validated

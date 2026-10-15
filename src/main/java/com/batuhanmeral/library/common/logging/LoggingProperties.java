@@ -6,9 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Logging settings of the library, bound from {@code library.logging.*}.
+ * Log ayarları ({@code library.logging.*}).
  *
- * @param slowCallThreshold a service call that takes at least this long is logged as a warning
+ * @param slowCallThreshold bu kadar süren service çağrısı uyarı olarak log'lanır
  */
 @ConfigurationProperties("library.logging")
 @Validated

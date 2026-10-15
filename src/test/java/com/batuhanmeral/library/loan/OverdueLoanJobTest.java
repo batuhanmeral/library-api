@@ -40,8 +40,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
- * The nightly job, run by hand with a clock the test moves forward. The batch size is 2, so five
- * members take three batches (three transactions).
+ * Gece işi, testin ileri aldığı saatle elle çalıştırılır. Grup boyu 2: beş üye üç grup (üç
+ * transaction) eder.
  */
 @SpringBootTest(properties = "library.loan.overdue-check.batch-size=2")
 @Import(MutableClockConfig.class)
@@ -100,7 +100,7 @@ class OverdueLoanJobTest implements DatabaseTest {
                         eq(new Recipient("grace@example.com", "+15555550143")),
                         contains("1 overdue"));
         verify(sms, times(2)).send(any(), anyString());
-        // Reminders go out by SMS only, not by the @Primary email service.
+        // Hatırlatmalar sadece SMS ile gider, @Primary e-posta ile değil.
         verify(email, never()).send(any(), anyString());
     }
 
@@ -159,9 +159,8 @@ class OverdueLoanJobTest implements DatabaseTest {
             lend(saveMember("reader" + i + "@example.com", "+1555555010" + i), "Book " + i);
         }
         clock.advance(Duration.ofDays(15));
-        // The first batch finds members, but by the time their loans are locked the loans are
-        // gone (returned in between, say). The run must go on with the next batch. A spy of a
-        // Spring Data repository delegates to the real proxy through its default answer.
+        // İlk grup üye bulur ama ödünçler kilitlenene kadar iade edilmiştir; çalışma sonraki grupla
+        // devam etmeli. Spy varsayılan cevabıyla gerçek proxy'ye gider.
         Answer<?> real =
                 mockingDetails(loanRepository).getMockCreationSettings().getDefaultAnswer();
         AtomicInteger calls = new AtomicInteger();
@@ -196,7 +195,7 @@ class OverdueLoanJobTest implements DatabaseTest {
         return userRepository.save(member);
     }
 
-    /** A loan made today by the test clock, due 14 days later. */
+    /** Test saatine göre bugün yapılan, 14 gün sonra dolan ödünç. */
     private long lend(User member, String title) {
         Book book = new Book(title, 1);
         book.setAuthor(author);

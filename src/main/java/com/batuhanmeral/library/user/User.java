@@ -19,12 +19,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 /**
- * A library user. The table is "users" because "user" is a reserved word in PostgreSQL. Users
- * register themselves, so only the timestamps are audited, not who made the change.
- *
- * <p>Only the name and the phone have setters. The address, the password hash and the role are set
- * once through the constructor: no code path, and no DTO mapped onto this entity, can change who a
- * user is or what they may do.
+ * Kütüphane kullanıcısı; tablo adı "users" çünkü "user" PostgreSQL'de ayrılmış kelime. Sadece ad ve
+ * telefonun setter'ı var; e-posta, şifre ve rol constructor'da bir kez atanır.
  */
 @Entity
 @Table(name = "users")
@@ -40,7 +36,7 @@ public class User {
     @Column(nullable = false, unique = true, length = 254)
     private String email;
 
-    /** BCrypt hash, never the plain password. */
+    /** BCrypt hash'i, asla düz şifre değil. */
     @Column(nullable = false, length = 100)
     private String password;
 
@@ -72,9 +68,7 @@ public class User {
     }
 
     /**
-     * Email addresses are compared in lower case: "Ada@Example.com" and "ada@example.com" are one
-     * account. Strictly, only the domain is case-insensitive, but no real provider tells the two
-     * apart, and users do not remember how they typed it.
+     * E-postalar küçük harfle karşılaştırılır: "Ada@Example.com" ve "ada@example.com" tek hesaptır.
      */
     public static String normalizeEmail(String email) {
         return email.strip().toLowerCase(Locale.ROOT);

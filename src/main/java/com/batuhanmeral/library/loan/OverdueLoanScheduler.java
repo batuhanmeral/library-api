@@ -9,16 +9,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Starts the overdue check every night. Both values come from application.yml: the cron expression
- * (02:00 by default) and the zone it is read in, the same library.time-zone the application clock
- * uses. Without {@code zone} the cron would follow the server's time zone. The method runs on the
- * scheduler's thread (spring.task.scheduling); while it runs, the next trigger of the same method
- * waits.
- *
- * <p>No request started the run, so it has no request id; it gets one of its own
- * ("overdue-check-1a2b3c4d") in the same MDC key, and every log line of the run carries it. A run
- * started by hand (POST /admin/jobs/overdue-check) keeps the id of its request instead
- * (MdcTaskDecorator).
+ * Gece işini her gece başlatır; cron ve saat dilimi application.yml'den gelir. Çalışmaya kendi
+ * request id'si verilir ("overdue-check-1a2b3c4d").
  */
 @Slf4j
 @Component
@@ -39,7 +31,7 @@ class OverdueLoanScheduler {
             }
             job.runClaimed();
         } finally {
-            // The scheduler's thread runs other tasks too.
+            // Scheduler thread'i başka işler de çalıştırır.
             MDC.remove(RequestIdFilter.MDC_KEY);
         }
     }

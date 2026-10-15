@@ -23,11 +23,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.SerializationException;
 import tools.jackson.databind.json.JsonMapper;
 
-/**
- * The Redis side of the cache, without a Redis server: building caches and turning values into
- * bytes and back needs no connection. Reading from and writing to a real Redis is checked by hand
- * (and in step 12 with Testcontainers).
- */
+/** Redis sunucusu olmadan cache'in Redis tarafı; gerçek Redis RedisCacheTest'te. */
 @ExtendWith(OutputCaptureExtension.class)
 class CacheConfigTest {
 
@@ -43,7 +39,7 @@ class CacheConfigTest {
 
     @Test
     void aCacheNameWithATypoIsNotCreatedSilently() {
-        // Otherwise it would get the default settings: no TTL and Java serialization.
+        // Yoksa varsayılan ayarları alırdı: TTL yok, Java serialization.
         assertThat(cacheManager.getCache("book")).isNull();
     }
 
@@ -66,7 +62,7 @@ class CacheConfigTest {
 
         ByteBuffer stored = configOf(CacheNames.BOOKS).getValueSerializationPair().write(book);
 
-        // Plain JSON, readable in redis-cli, with no Java class names in it.
+        // redis-cli'da okunabilir düz JSON, Java sınıf adı yok.
         assertThat(StandardCharsets.UTF_8.decode(stored.duplicate()).toString())
                 .contains("\"title\":\"Dune\"", "\"createdAt\":\"2026-11-25T10:15:30.123456Z\"")
                 .doesNotContain("com.batuhanmeral", "@class");
@@ -88,8 +84,7 @@ class CacheConfigTest {
 
     @Test
     void aFailingCacheIsLoggedNotThrown() {
-        // The cache only makes reads faster. When Redis is down, the request goes to the
-        // database instead of failing.
+        // Redis kapalıyken istek düşmez, veritabanına gider.
         Cache cache = new ConcurrentMapCache(CacheNames.BOOKS);
         var handler = new CacheConfig().errorHandler();
 
@@ -118,7 +113,7 @@ class CacheConfigTest {
                         7L,
                         "Ada Lovelace's loan");
 
-        // Without the type, a Redis that is down and a value that cannot be read look the same.
+        // Tip olmadan, kapalı Redis ile okunamayan değer aynı görünürdü.
         assertThat(output)
                 .contains(
                         "Cache 'books' failed to put entry with key '7'", "SerializationException")

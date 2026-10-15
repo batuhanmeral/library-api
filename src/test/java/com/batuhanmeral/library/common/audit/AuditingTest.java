@@ -20,8 +20,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * JPA slice test: only entities, repositories and the database are set up. The auditing
- * configuration is a regular configuration class, so the slice does not load it on its own.
+ * JPA slice testi; auditing ayarı normal bir configuration sınıfı olduğu için elle import edilir.
  */
 @DataJpaTest
 @Import(JpaAuditingConfig.class)
@@ -42,14 +41,14 @@ class AuditingTest implements DatabaseTest {
 
         assertThat(category.getCreatedAt()).isNotNull().isAfterOrEqualTo(before);
         assertThat(category.getUpdatedAt()).isEqualTo(category.getCreatedAt());
-        // Nobody is logged in: a change the application makes on its own.
+        // Giriş yapan yok: uygulamanın kendi değişikliği.
         assertThat(category.getCreatedBy()).isEqualTo(SecurityAuditorAware.SYSTEM);
         assertThat(category.getUpdatedBy()).isEqualTo(SecurityAuditorAware.SYSTEM);
     }
 
     @Test
     void aChangeMadeInARequestWithATokenNamesItsUser() {
-        // What JwtAuthenticationFilter puts into the SecurityContext for a valid token.
+        // JwtAuthenticationFilter'ın geçerli token için SecurityContext'e koyduğu değer.
         SecurityContextHolder.getContext()
                 .setAuthentication(
                         UsernamePasswordAuthenticationToken.authenticated(

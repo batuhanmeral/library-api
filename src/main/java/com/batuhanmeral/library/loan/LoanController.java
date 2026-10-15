@@ -27,10 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-/**
- * Who may call each endpoint is set in SecurityConfig; whether a loan belongs to the caller is
- * checked in LoanService. The caller arrives as the {@code @AuthenticationPrincipal} parameter.
- */
+/** Uç nokta yetkileri SecurityConfig'te, ödüncün sahipliği LoanService'te kontrol edilir. */
 @Tag(name = "Loans")
 @RestController
 @RequiredArgsConstructor
@@ -44,8 +41,8 @@ public class LoanController {
     private final LoanFacade loanFacade;
 
     /**
-     * Audited here rather than on LoanFacade: the {@code @Retryable} proxy always puts itself in
-     * front of a bean's other advice, so on the facade every attempt would be audited.
+     * LoanFacade'de değil burada audit edilir: {@code @Retryable} proxy'si en dışta, orada her
+     * deneme audit edilirdi.
      */
     @Auditable(action = AuditAction.LOAN_BORROW, target = "#request.bookId()")
     @PostMapping
@@ -61,10 +58,7 @@ public class LoanController {
         return ResponseEntity.created(location).body(created);
     }
 
-    /**
-     * Returning is an action on a loan, not a field a client sets, so it is a POST to a
-     * sub-resource rather than a PATCH of the status.
-     */
+    /** İade bir eylemdir, istemcinin yazdığı alan değil; bu yüzden durum PATCH'i değil POST. */
     @Auditable(action = AuditAction.LOAN_RETURN, target = "#id")
     @PostMapping("/{id}/return")
     public LoanResponse returnBook(
@@ -73,8 +67,8 @@ public class LoanController {
     }
 
     /**
-     * The caller's own loans, newest first. A literal path segment wins over {id}, so "/me" never
-     * reaches findById.
+     * Çağıranın kendi ödünçleri, yeniden eskiye. Sabit yol parçası {id}'den önce gelir, "/me"
+     * findById'ye gitmez.
      */
     @GetMapping("/me")
     public PageResponse<LoanResponse> ownLoans(
@@ -96,7 +90,7 @@ public class LoanController {
         return loanService.findById(id, caller);
     }
 
-    /** Every member's loans; admins only. */
+    /** Tüm üyelerin ödünçleri; sadece admin. */
     @GetMapping
     public PageResponse<LoanResponse> search(
             @Valid @ParameterObject LoanSearchCriteria criteria,

@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 /**
- * Replaces the application clock in tests that move time forward. {@code @Primary} makes every
- * {@code Clock} injection point get this one instead of the clock from ClockConfig.
+ * Zamanı ileri alan testlerde uygulama saatini değiştirir; {@code @Primary} her {@code Clock}
+ * enjeksiyonuna bunu verir.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class MutableClockConfig {

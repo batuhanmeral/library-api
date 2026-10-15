@@ -9,19 +9,16 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
 /**
- * Counts requests per client in Redis, so every copy of the application shares one count and a
- * restart does not reset it.
+ * İstekleri Redis'te sayar: uygulamanın her kopyası aynı sayacı paylaşır, yeniden başlatma
+ * sıfırlamaz.
  *
- * <p>A fixed window: the first request of a client creates a counter that Redis deletes by itself
- * when the window ends (PEXPIRE); every request adds one (INCR). The script runs in Redis as one
- * step, so two requests at the same time cannot both see the counter missing, and a counter never
- * stays without its expiry (with INCR and PEXPIRE as two calls, a crash in between would block the
- * client for good).
+ * <p>Sabit pencere: ilk istek sayacı süreyle oluşturur (PEXPIRE), her istek bir artırır (INCR).
+ * Betik Redis'te tek adımda çalışır, sayaç süresiz kalmaz.
  */
 @Slf4j
 public class RedisRateLimiter {
 
-    /** The same prefix as the cache keys (spring.cache.redis.key-prefix). */
+    /** Cache anahtarlarıyla aynı önek. */
     static final String KEY_PREFIX = "library-api:rate-limit:";
 
     private static final RedisScript<List> COUNT =
@@ -42,9 +39,9 @@ public class RedisRateLimiter {
     }
 
     /**
-     * Counts one request of {@code client} against {@code rule}.
+     * {@code client}'ın bir isteğini {@code rule}'a göre sayar.
      *
-     * @return empty if the request may go on, otherwise how long until the client may try again
+     * @return istek devam edebiliyorsa boş, yoksa tekrar denemeye kalan süre
      */
     public Optional<Duration> check(String name, String client, RateLimitProperties.Rule rule) {
         String key = KEY_PREFIX + name + ":" + client;
@@ -52,9 +49,8 @@ public class RedisRateLimiter {
         try {
             result = redis.execute(COUNT, List.of(key), String.valueOf(rule.window().toMillis()));
         } catch (DataAccessException e) {
-            // Without Redis the requests are not counted and all of them are let through:
-            // refusing every login while Redis is down would lock everybody out. The log says
-            // which exception, never the client.
+            // Redis yoksa istekler sayılmadan geçer: Redis kapalıyken her girişi reddetmek herkesi
+            // dışarıda bırakırdı. Log istemciyi yazmaz.
             log.warn(
                     "Rate limit for {} not checked: Redis did not answer ({})",
                     name,

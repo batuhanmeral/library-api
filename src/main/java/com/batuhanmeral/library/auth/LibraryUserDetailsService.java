@@ -10,9 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Finds the account for a login. Spring Security turns the UsernameNotFoundException into the same
- * BadCredentialsException as a wrong password, and still hashes the given password once, so neither
- * the answer nor its timing tells whether the address has an account.
+ * Giriş için hesabı bulur. Bilinmeyen e-posta da yanlış şifre gibi BadCredentialsException olur ve
+ * şifre yine hash'lenir; ne cevap ne süre hesabın varlığını ele verir.
  */
 @Service
 @RequiredArgsConstructor

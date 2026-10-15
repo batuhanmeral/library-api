@@ -17,11 +17,7 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-/**
- * The filter on its own, without Spring: a mock request, a mock response and a chain whose
- * "servlet" records what it sees. A filter is a plain Servlet API object, so it can be tested like
- * any class.
- */
+/** Spring olmadan filter: mock istek, mock cevap ve gördüğünü kaydeden bir zincir. */
 class RequestIdFilterTest {
 
     private final RequestIdFilter filter = new RequestIdFilter();
@@ -31,7 +27,7 @@ class RequestIdFilterTest {
 
     private final MockHttpServletResponse response = new MockHttpServletResponse();
 
-    /** What the rest of the request (controller, services) sees in the MDC. */
+    /** İsteğin geri kalanının (controller, service) MDC'de gördüğü. */
     private final AtomicReference<String> idSeenByTheRequest = new AtomicReference<>();
 
     private final FilterChain chain =
@@ -74,7 +70,7 @@ class RequestIdFilterTest {
         assertThat(idSeenByTheRequest).hasValue("gateway-7f3a.42_b");
     }
 
-    /** The id ends up in every log line: it must not be able to break or forge one. */
+    /** Id her log satırına girer: satırı bozamamalı ya da sahte satır üretememeli. */
     @ParameterizedTest
     @ValueSource(
             strings = {
@@ -95,8 +91,8 @@ class RequestIdFilterTest {
     }
 
     /**
-     * When an exception escapes DispatcherServlet, the server sends the same request through the
-     * filters again, to the error page (/error). The lines written then belong to the same request.
+     * DispatcherServlet'ten hata kaçınca sunucu aynı isteği /error için filter'lardan tekrar
+     * geçirir; o satırlar da aynı isteğe aittir.
      */
     @Test
     void anErrorDispatchKeepsTheIdOfTheRequest() throws Exception {
@@ -115,7 +111,7 @@ class RequestIdFilterTest {
     void theIdIsRemovedFromTheMdcWhenTheRequestEnds() throws Exception {
         filter.doFilter(request, response, chain);
 
-        // The thread goes back to the server's pool and will serve another request.
+        // Thread sunucunun havuzuna döner ve başka isteğe hizmet eder.
         assertThat(MDC.get(RequestIdFilter.MDC_KEY)).isNull();
     }
 

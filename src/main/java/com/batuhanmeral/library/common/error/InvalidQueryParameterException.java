@@ -1,8 +1,8 @@
 package com.batuhanmeral.library.common.error;
 
 /**
- * Thrown when a query parameter has a value of the right type that the endpoint still cannot use,
- * such as a sort field that is not allowed or a year range that ends before it starts.
+ * Tipi doğru ama uç noktanın kullanamadığı parametre, örn. izin verilmeyen sıralama alanı ya da
+ * ters yıl aralığı.
  */
 public class InvalidQueryParameterException extends ApiException {
 

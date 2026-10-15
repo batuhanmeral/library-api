@@ -7,7 +7,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
-/** The loan counters on their own, with Micrometer's in-memory registry. */
+/** Micrometer'ın bellek içi registry'si ile ödünç sayaçları. */
 class LoanMetricsTest {
 
     private final MeterRegistry registry = new SimpleMeterRegistry();
@@ -16,7 +16,7 @@ class LoanMetricsTest {
 
     @Test
     void theCountersExistBeforeTheFirstLoan() {
-        // Registered at startup, so a dashboard shows 0 instead of "no data".
+        // Başlangıçta kaydedilir, dashboard "veri yok" yerine 0 gösterir.
         assertThat(registry.get("library.loans.borrowed").counter().count()).isZero();
         assertThat(registry.get("library.loans.returned").counter().count()).isZero();
     }

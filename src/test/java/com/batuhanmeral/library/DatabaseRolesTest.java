@@ -28,12 +28,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
 /**
- * The database users of docker-compose.yml: the roles script (docker/postgres/init) creates an
- * owner, who runs the migrations, and an application user, who may only read and write rows. The
- * application connects with the second, Flyway with the first (spring.flyway.user).
+ * docker-compose.yml'deki veritabanı kullanıcıları: migration'ları çalıştıran şema sahibi ve sadece
+ * satır okuyup yazan uygulama kullanıcısı.
  *
- * <p>A server of its own: the shared one of {@link DatabaseTest} has only its superuser, and its
- * tables belong to that superuser.
+ * <p>Kendi sunucusu var: {@link DatabaseTest}'in ortak sunucusunda sadece superuser var.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -43,8 +41,7 @@ class DatabaseRolesTest {
     private static final String APP = "library_app";
 
     /**
-     * The script runs the way the image runs it in docker-compose.yml: once, from
-     * /docker-entrypoint-initdb.d, when the data directory is empty.
+     * Betik, docker-compose.yml'deki imajın çalıştırdığı gibi çalışır: veri dizini boşken bir kez.
      */
     static final PostgreSQLContainer POSTGRES = withRolesScript("owner-test-password");
 
@@ -114,8 +111,8 @@ class DatabaseRolesTest {
     }
 
     /**
-     * What an SQL injection through the application could no longer do: change or drop the schema,
-     * empty a table in one statement, or create objects of its own.
+     * Uygulama üzerinden SQL injection artık bunları yapamaz: şemayı değiştirmek, tabloyu tek
+     * komutla boşaltmak, kendi nesnesini oluşturmak.
      */
     @ParameterizedTest
     @ValueSource(
@@ -128,7 +125,7 @@ class DatabaseRolesTest {
                 "create temporary table notes (id int)"
             })
     void theApplicationUserCannotChangeTheSchema(String statement) {
-        // SQLState 42501, insufficient_privilege: "permission denied" or "must be owner".
+        // SQLState 42501, insufficient_privilege.
         assertThatThrownBy(() -> jdbcTemplate.execute(statement))
                 .isInstanceOf(DataAccessException.class)
                 .rootCause()
@@ -137,7 +134,7 @@ class DatabaseRolesTest {
                 .isEqualTo("42501");
     }
 
-    /** The server's own "postgres" database is closed to both users too. */
+    /** Sunucunun kendi "postgres" veritabanı da iki kullanıcıya kapalı. */
     @Test
     void theApplicationUserCannotConnectToTheServersOtherDatabase() {
         String url = POSTGRES.getJdbcUrl().replaceFirst("/test\\b", "/postgres");
@@ -148,10 +145,8 @@ class DatabaseRolesTest {
     }
 
     /**
-     * The checks at the top of the script run before psql, so the script can be run here with sh.
-     * The first start stops, before any user exists, instead of creating an owner everybody knows
-     * the password of, or failing in CREATE ROLE, whose statement PostgreSQL would log with the
-     * password.
+     * Betiğin başındaki kontroller psql'den önce çalışır, burada sh ile denenebilir. İlk başlatma,
+     * şifresi herkesçe bilinen bir sahip oluşturmak yerine durur.
      */
     @ParameterizedTest
     @CsvSource({

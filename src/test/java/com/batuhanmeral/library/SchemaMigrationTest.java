@@ -14,8 +14,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * The schema comes from the Flyway migrations, and Hibernate only checks that the entities match
- * it. These tests check the rules that live only in the database.
+ * Şema Flyway'den gelir, Hibernate sadece entity'lerin uyduğunu kontrol eder. Bu testler sadece
+ * veritabanında yaşayan kuralları sınar.
  */
 @DataJpaTest
 class SchemaMigrationTest implements DatabaseTest {
@@ -46,7 +46,7 @@ class SchemaMigrationTest implements DatabaseTest {
 
     @Test
     void booksInsertedWithoutAVersionStartAtVersionZero() {
-        // Rows that existed before V2 get the column default.
+        // V2'den önce var olan satırlar sütun varsayılanını alır.
         insertBook(1, 1);
 
         assertThat(jdbcTemplate.queryForObject("select version from books", Long.class)).isZero();
@@ -108,8 +108,7 @@ class SchemaMigrationTest implements DatabaseTest {
 
     @Test
     void returnedLoansDoNotCountAsOpen() {
-        // The index is partial: returned loans are not in it, so a member may borrow the same
-        // book again, and again.
+        // Index kısmi: iade edilen ödünçler içinde değil, üye aynı kitabı tekrar alabilir.
         long bookId = insertBook(1, 1);
         long memberId = insertMember();
         insertLoan(bookId, memberId, "RETURNED");

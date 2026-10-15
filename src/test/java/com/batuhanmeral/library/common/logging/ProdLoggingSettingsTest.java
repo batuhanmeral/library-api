@@ -10,8 +10,8 @@ import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 
 /**
- * Starting the application with the prod profile would switch the logging of the whole test JVM to
- * JSON, so this reads the profile's file instead.
+ * prod profiliyle başlatmak tüm test JVM'inin log'unu JSON yapardı, bu yüzden profil dosyası
+ * okunur.
  */
 class ProdLoggingSettingsTest {
 
@@ -21,8 +21,7 @@ class ProdLoggingSettingsTest {
                 new YamlPropertySourceLoader()
                         .load("prod", new ClassPathResource("application-prod.yml"));
 
-        // Elastic Common Schema: one JSON object per line, MDC values (requestId) included, line
-        // breaks in messages escaped.
+        // Elastic Common Schema: satır başına bir JSON nesnesi, MDC değerleri dahil.
         assertThat(sources.getFirst().getProperty("logging.structured.format.console"))
                 .hasToString("ecs");
     }

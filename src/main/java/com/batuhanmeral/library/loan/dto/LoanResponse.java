@@ -4,7 +4,7 @@ import com.batuhanmeral.library.loan.LoanStatus;
 import java.time.Instant;
 import java.time.LocalDate;
 
-/** A loan as the API returns it, with a short summary of the book and the member. */
+/** API'nin döndüğü ödünç, kitap ve üye özetiyle. */
 public record LoanResponse(
         Long id,
         BookSummary book,
@@ -18,6 +18,6 @@ public record LoanResponse(
 
     public record BookSummary(Long id, String title) {}
 
-    /** No email or phone: a loan list should not expose members' contact details. */
+    /** E-posta ve telefon yok: ödünç listesi iletişim bilgisi göstermez. */
     public record MemberSummary(Long id, String fullName) {}
 }

@@ -7,20 +7,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Settings of the access tokens, bound from {@code library.security.jwt.*}.
+ * Access token ayarları ({@code library.security.jwt.*}).
  *
- * @param secret the HMAC key, Base64 of at least 32 random bytes ({@code openssl rand -base64 32}).
- *     Whoever knows it can sign tokens for any user, so it comes from the environment (JWT_SECRET)
- *     and is never written into the repository.
- * @param expiration how long a token is accepted after it was issued
- * @param issuer written into every token ("iss") and required when one is read back
+ * @param secret HMAC anahtarı, en az 32 rastgele baytın Base64'ü; ortamdan gelir (JWT_SECRET),
+ *     repoya yazılmaz
+ * @param expiration token'ın verildikten sonra geçerli kaldığı süre
+ * @param issuer her token'a yazılan ve okurken aranan "iss"
  */
 @ConfigurationProperties("library.security.jwt")
 @Validated
 public record JwtProperties(
         @NotBlank String secret, @NotNull Duration expiration, @NotBlank String issuer) {
 
-    /** Keeps the secret out of logs and error messages that print the properties. */
+    /** Secret, özellikleri yazdıran log ve hata mesajlarına düşmesin. */
     @Override
     public String toString() {
         return "JwtProperties[secret=***, expiration=%s, issuer=%s]".formatted(expiration, issuer);

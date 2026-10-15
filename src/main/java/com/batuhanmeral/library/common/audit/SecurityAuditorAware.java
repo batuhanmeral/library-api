@@ -7,12 +7,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * Tells JPA auditing (createdBy, updatedBy) and the audit log who makes a change: the user of the
- * request's token ("user:12"), or "system" when there is none, as for the nightly job or a
- * registration.
- *
- * <p>The SecurityContext belongs to the request's thread. Work handed to another thread
- * ({@code @Async}) does not see it and is recorded as "system".
+ * Değişikliği kimin yaptığını söyler: token'daki kullanıcı ("user:12") ya da yoksa "system".
+ * SecurityContext thread'e bağlıdır, {@code @Async} işler "system" görünür.
  */
 public class SecurityAuditorAware implements AuditorAware<String> {
 

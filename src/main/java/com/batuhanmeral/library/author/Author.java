@@ -38,8 +38,8 @@ public class Author extends BaseEntity {
     private LocalDate birthDate;
 
     /**
-     * Inverse side of {@link Book#getAuthor()}. Hibernate reads it but never writes it: the
-     * author_id column changes only through Book.author. Lazy by default for collections.
+     * {@link Book#getAuthor()} ilişkisinin ters tarafı; Hibernate okur ama yazmaz, author_id sadece
+     * Book.author ile değişir.
      */
     @OneToMany(mappedBy = "author")
     @Setter(AccessLevel.NONE)

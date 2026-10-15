@@ -1,4 +1,4 @@
 package com.batuhanmeral.library.common.error;
 
-/** One invalid field in a request body, listed under {@code errors} in a 400 response. */
+/** İstek gövdesindeki geçersiz bir alan; 400 cevabında {@code errors} altında listelenir. */
 public record FieldViolation(String field, String message) {}

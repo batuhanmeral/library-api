@@ -10,8 +10,8 @@ import org.springframework.boot.validation.autoconfigure.ValidationAutoConfigura
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Binding and validation of library.loan.* in a small context, without starting the application.
- * ApplicationContextRunner starts a fresh context for each run with exactly the given properties.
+ * library.loan.* binding ve doğrulaması, uygulamayı başlatmadan; ApplicationContextRunner her
+ * çalıştırmada yeni context kurar.
  */
 class LoanPropertiesTest {
 

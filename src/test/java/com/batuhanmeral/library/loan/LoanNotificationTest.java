@@ -35,10 +35,7 @@ import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-/**
- * Confirmation emails for borrowing and returning. They go out only after the loan is committed;
- * LoanConcurrencyTest checks the same for borrows that lose a race and are retried.
- */
+/** Ödünç ve iade e-postaları; sadece commit'ten sonra gider. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class LoanNotificationTest implements DatabaseTest {

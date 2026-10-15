@@ -46,7 +46,7 @@ class LoanMappingTest implements DatabaseTest {
 
         Loan loan = entityManager.find(Loan.class, loanId);
 
-        // Only proxies holding the ids; no query has run for the book or the member yet.
+        // Sadece id tutan proxy'ler; kitap ve üye için henüz sorgu çalışmadı.
         assertThat(Hibernate.isInitialized(loan.getBook())).isFalse();
         assertThat(Hibernate.isInitialized(loan.getMember())).isFalse();
         assertThat(loan.getBook().getTitle()).isEqualTo("Dune");

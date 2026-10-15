@@ -5,8 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
- * {@code @ConfigurationPropertiesScan} registers every {@code @ConfigurationProperties} class in
- * this package and below as a bean, such as {@code LoanProperties}.
+ * {@code @ConfigurationPropertiesScan}, bu paketin altındaki her {@code @ConfigurationProperties}
+ * sınıfını bean yapar.
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan

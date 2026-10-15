@@ -1,8 +1,8 @@
 package com.batuhanmeral.library.common.error;
 
 /**
- * A service this application depends on did not answer usefully (timeout, connection error, 5xx).
- * The client may try again later; the message must not repeat the underlying error.
+ * Bağlı olunan servis işe yarar cevap vermedi (timeout, bağlantı hatası, 5xx). Mesaj alttaki hatayı
+ * tekrarlamamalı.
  */
 public class ExternalServiceUnavailableException extends ApiException {
 

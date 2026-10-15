@@ -27,18 +27,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Lending and returning. Each public method is one transaction: everything it changes is saved
- * together or, when it throws a RuntimeException, not at all. Both change the book's available
- * copies, so both drop the book's cache entry (GET /books/{id}). The controller does not call
- * borrow and returnBook directly but through LoanFacade, which runs them again when they lose a
- * race.
+ * Ödünç ve iade. Her public metod tek transaction'dır; ikisi de kitabın cache kaydını siler.
+ * Controller bunları yarış kaybında tekrar deneyen LoanFacade üzerinden çağırır.
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class LoanService {
 
-    /** Loans that hold a copy: they count towards the limit and block deleting the book. */
+    /** Kopya tutan ödünçler: sınıra sayılır, kitabın silinmesini engeller. */
     public static final Set<LoanStatus> OPEN_STATUSES =
             EnumSet.of(LoanStatus.ACTIVE, LoanStatus.OVERDUE);
 
@@ -51,21 +48,11 @@ public class LoanService {
     private final ApplicationEventPublisher events;
 
     /**
-     * Lends one copy of a book. Two kinds of races are possible, and each has its own guard:
+     * Bir kopya ödünç verir. Aynı kitabı iki üye alırsa Book.version ikinciyi düşürür. Bir üye iki
+     * kitabı aynı anda alırsa üye satırı kilitlidir, ikinci istek bekler.
      *
-     * <ul>
-     *   <li>Two members, the same book: the book is not locked; a request that changes it between
-     *       our read and our commit makes this commit fail (Book.version), so two members cannot
-     *       both take the last copy.
-     *   <li>One member, two books at once: the books differ, so their versions do not conflict. The
-     *       member's row is locked instead, so the second request waits until the first has
-     *       committed and then counts its loan. The same lock keeps one member from taking two
-     *       copies of one book with two requests at once.
-     * </ul>
-     *
-     * <p>The member comes from the token. SecurityConfig lets only MEMBER tokens in, but a token is
-     * not checked against the database: one issued before the user's role changed is still
-     * accepted, so the role is checked here again, as the database has it now.
+     * <p>Token veritabanıyla karşılaştırılmadığı için rol burada güncel haliyle tekrar kontrol
+     * edilir.
      */
     @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#request.bookId()")
     @Transactional
@@ -104,8 +91,7 @@ public class LoanService {
         book.borrowCopy();
 
         Loan loan = loanRepository.save(new Loan(book, member, today, loanProperties.periodDays()));
-        // Listeners decide when to act: the confirmation email waits for the commit, so a borrow
-        // that is rolled back (or loses a race and is retried) announces nothing.
+        // E-posta commit'i bekler; geri alınan ya da tekrarlanan ödünç bir şey duyurmaz.
         events.publishEvent(
                 new LoanBorrowedEvent(
                         loan.getId(), member.getEmail(), book.getTitle(), loan.getDueDate()));
@@ -113,9 +99,7 @@ public class LoanService {
     }
 
     /**
-     * The member who borrowed the book, or an admin (a book handed in at the desk). The book's
-     * cache entry is dropped after the commit; its id comes from the result (#result), because the
-     * request names only the loan.
+     * Ödüncü alan üye ya da admin. Kitap id'si istekte yok, cache kaydı sonuçtan (#result) silinir.
      */
     @CacheEvict(cacheNames = CacheNames.BOOKS, key = "#result.book().id()")
     @Transactional
@@ -124,8 +108,7 @@ public class LoanService {
         checkAccess(loan, caller);
         loan.markReturned(LocalDate.now(clock));
         loan.getBook().returnCopy();
-        // Write now: the response shows the new updatedAt, and a conflicting change of the book
-        // fails here, inside this method.
+        // Hemen yaz: cevapta yeni updatedAt olsun, kitaptaki çakışma bu metodun içinde düşsün.
         loanRepository.flush();
         events.publishEvent(
                 new LoanReturnedEvent(
@@ -149,9 +132,8 @@ public class LoanService {
     }
 
     /**
-     * A member may see and return only their own loans; an admin any loan. This rule needs the
-     * loan's member, which only the database knows, so it lives here and not in SecurityConfig. 403
-     * rather than 404 tells the caller that the loan exists; ids are not secret here.
+     * Üye sadece kendi ödünçlerini görür ve iade eder, admin hepsini. Ödüncün sahibini veritabanı
+     * bildiği için kural burada; id'ler gizli olmadığından 404 değil 403.
      */
     private static void checkAccess(Loan loan, AuthenticatedUser caller) {
         if (!caller.isAdmin() && !loan.getMember().getId().equals(caller.id())) {

@@ -34,10 +34,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
- * Turns every exception that leaves a controller into an RFC 9457 problem response with an {@code
- * errorCode} field. The parent class already handles the exceptions Spring MVC raises (unreadable
- * body, wrong method, unknown path, ...); the methods here add the error code and cover the
- * application's own exceptions.
+ * Controller'dan çıkan her hatayı {@code errorCode} alanlı RFC 9457 problem cevabına çevirir.
+ * Spring MVC hatalarını üst sınıf karşılar, burada hata kodu eklenir.
  */
 @Slf4j
 @RestControllerAdvice
@@ -46,9 +44,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String ERROR_CODE = "errorCode";
 
     /**
-     * Database constraints that guard a business rule the service also checks. When the database is
-     * the one to refuse (the service check was missed), the client gets the rule's own code, as if
-     * the service had refused. Any other violation is a DATA_CONFLICT.
+     * Service'in de kontrol ettiği kuralları koruyan constraint'ler. Veritabanı reddederse istemci
+     * kuralın kendi kodunu alır; diğerleri DATA_CONFLICT.
      */
     private static final Map<String, RuleViolation> RULE_CONSTRAINTS =
             Map.of(
@@ -60,10 +57,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private record RuleViolation(ErrorCode errorCode, String detail) {}
 
     /**
-     * SQLState 22021 (character_not_in_repertoire): PostgreSQL refuses a NUL character (U+0000) in
-     * any text value, stored or compared. The client sent it, so it is a bad request, not a
-     * conflict and not a server error. Other SQLState class 22 errors (a value too long, a bad
-     * cast) mean a check is missing in the application and keep their own handling.
+     * SQLState 22021: PostgreSQL metinde NUL karakteri reddeder. İstemci gönderdi, yani 400. Sınıf
+     * 22'nin diğer hataları uygulamada eksik kontrol demektir.
      */
     private static final String UNSTORABLE_CHARACTER = "22021";
 
@@ -72,10 +67,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(ex.getErrorCode(), ex.getMessage(), request);
     }
 
-    /**
-     * 429 with Retry-After (RFC 9110): the seconds until the client's window ends, rounded up, so a
-     * client that waits that long is never refused again for the same window.
-     */
+    /** Retry-After ile 429: pencerenin bitmesine kalan saniye, yukarı yuvarlanmış. */
     @ExceptionHandler(TooManyRequestsException.class)
     ResponseEntity<ProblemDetail> handleTooManyRequests(
             TooManyRequestsException ex, HttpServletRequest request) {
@@ -92,8 +84,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (isUnstorableCharacter(ex)) {
             return unstorableValue(request);
         }
-        // The database message names tables and repeats the rejected values, which may hold line
-        // breaks. Neither the client nor the log gets it; the constraint name is enough to debug.
+        // Veritabanı mesajı tabloları ve reddedilen değerleri içerir; ne istemciye ne log'a gider,
+        // constraint adı yeter.
         String constraint =
                 ex.getCause() instanceof ConstraintViolationException violation
                         ? violation.getConstraintName()
@@ -108,8 +100,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * Another transaction changed the same row between our read and our write (see Book.version).
-     * The client can reload and try again; nothing of this request was saved.
+     * Okuma ile yazma arasında başka transaction aynı satırı değiştirdi (bkz. Book.version). Hiçbir
+     * şey kaydedilmedi, istemci tekrar deneyebilir.
      */
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail handleOptimisticLockingFailure(
@@ -122,21 +114,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * 401: no token where one is needed, a bad token, or a failed login. RFC 9110 asks a 401 to
-     * name the authentication scheme in WWW-Authenticate; RFC 6750 adds the error for a bad token.
-     * Most of these come from Spring Security's filters through SecurityErrorHandler; a failed
-     * login comes from AuthService.
+     * 401: token yok, token bozuk ya da giriş başarısız. WWW-Authenticate şemayı (RFC 9110) ve
+     * bozuk token hatasını (RFC 6750) bildirir.
      */
     @ExceptionHandler(AuthenticationException.class)
     ResponseEntity<ProblemDetail> handleAuthentication(
             AuthenticationException ex, HttpServletRequest request) {
         if (ex instanceof InternalAuthenticationServiceException && isUnstorableCharacter(ex)) {
-            // Spring Security wraps every failure of the user lookup, this one too.
+            // Spring Security kullanıcı aramasındaki her hatayı sarar, bunu da.
             return ResponseEntity.badRequest().body(unstorableValue(request));
         }
         if (ex instanceof InternalAuthenticationServiceException) {
-            // Not the client's credentials: the account could not be loaded (the database is
-            // down, for example). A 401 would tell the client to log in and hide the outage.
+            // İstemcinin bilgisi değil, hesap yüklenemedi (örn. veritabanı kapalı); 401 arızayı
+            // gizlerdi.
             log.error("Authentication failed inside the server", ex);
             return ResponseEntity.internalServerError()
                     .body(
@@ -164,17 +154,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(problem(code, detail, request));
     }
 
-    /** 403: a valid token whose user lacks the role a rule of SecurityConfig asks for. */
+    /** 403: geçerli token, ama SecurityConfig'teki kuralın istediği rol yok. */
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         return problem(ErrorCode.ACCESS_DENIED, "You do not have permission to do this.", request);
     }
 
     /**
-     * 400: Spring Security's firewall (StrictHttpFirewall) refused the request before anything else
-     * read it: a ";" or an encoded "/" in the path, "../", a header with control characters. The
-     * rejected path is left out of the answer and the log: it is what the firewall did not trust,
-     * and URI.create could not even parse some of them ("%zz").
+     * 400: StrictHttpFirewall isteği reddetti (";" ya da kodlanmış "/", "../", kontrol karakterli
+     * header). Güvenilmeyen yol cevaba ve log'a yazılmaz.
      */
     @ExceptionHandler(RequestRejectedException.class)
     ProblemDetail handleRequestRejected(RequestRejectedException ex) {
@@ -210,8 +198,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * A path variable or a request parameter that does not convert to its type ("abc" for an id).
-     * Spring's detail names the type and repeats the value; the client gets the name only.
+     * Tipine çevrilemeyen path variable ya da parametre ("abc" id). İstemci sadece adı görür,
+     * değeri değil.
      */
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(
@@ -231,7 +219,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, headers, status, request);
     }
 
-    /** No controller and no static file for the path. Spring's detail repeats the path. */
+    /** Yol için controller ya da statik dosya yok; Spring'in mesajı yolu tekrarlardı. */
     @Override
     protected ResponseEntity<Object> handleNoResourceFoundException(
             NoResourceFoundException ex,
@@ -242,10 +230,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, ex.getBody(), headers, status, request);
     }
 
-    /**
-     * Every response built by the parent class passes through here. Most of its handlers pass a
-     * null body; the problem then comes from the exception itself.
-     */
+    /** Üst sınıfın her cevabı buradan geçer; gövde null ise problem hatanın kendisinden alınır. */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex,
@@ -267,10 +252,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return super.handleExceptionInternal(ex, body, headers, statusCode, request);
     }
 
-    /**
-     * A binding failure is a value that could not be converted, such as "LOST" for a loan status.
-     * Spring's message for it names the Java type and repeats the value; a fixed text is enough.
-     */
+    /** Binding hatası çevrilemeyen değerdir (örn. "LOST" durumu); sabit metin yeter. */
     private static String messageOf(FieldError error) {
         return error.isBindingFailure() ? "has an invalid value" : error.getDefaultMessage();
     }

@@ -6,15 +6,11 @@ import java.net.UnknownHostException;
 import java.util.regex.Pattern;
 
 /**
- * Who a rate limit counts: the address the request came from. An IPv4 address is one client. An
- * IPv6 client usually gets a whole /64 network (2^64 addresses) from its provider and could use a
- * new address for every request, so IPv6 is counted per /64.
+ * Hız sınırının saydığı istemci: isteğin geldiği adres. IPv4 tek istemcidir, IPv6 /64 ağı olarak
+ * sayılır.
  *
- * <p>The address is the TCP peer (ServletRequest.getRemoteAddr). Behind a reverse proxy that is the
- * proxy, and every client would share one counter: such a deployment sets
- * server.forward-headers-strategy so that the servlet container takes the client from the proxy's
- * X-Forwarded-For header. Without a proxy that setting must stay off, or a client could write any
- * address into the header.
+ * <p>Adres TCP karşı tarafıdır. Reverse proxy arkasında server.forward-headers-strategy açılmalı;
+ * proxy yoksa kapalı kalmalı, yoksa istemci header'a istediği adresi yazabilir.
  */
 final class ClientAddress {
 
@@ -23,16 +19,13 @@ final class ClientAddress {
                     "((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)");
 
     /**
-     * Starts with a hex digit or a colon and has a colon: InetAddress only parses such a string as
-     * a literal and never asks DNS for it. A zone may follow after "%".
+     * Hex rakam ya da iki nokta ile başlar ve iki nokta içerir: InetAddress bunu DNS'e sormadan
+     * literal olarak okur.
      */
     private static final Pattern IPV6 =
             Pattern.compile("[0-9A-Fa-f:][0-9A-Fa-f.]*:[0-9A-Fa-f:.]{0,44}(%[\\w.-]{1,32})?");
 
-    /**
-     * Every value that is not an address shares this one key, so that odd values cannot each get a
-     * fresh counter.
-     */
+    /** Adres olmayan her değer bu tek anahtarı paylaşır, her biri yeni sayaç almasın. */
     static final String INVALID = "invalid";
 
     private ClientAddress() {}
@@ -45,21 +38,18 @@ final class ClientAddress {
             return remoteAddress;
         }
         if (!IPV6.matcher(remoteAddress).matches()) {
-            // A servlet container always gives an address; this only happens if the value comes
-            // from somewhere else (a forwarded header).
+            // Servlet container hep adres verir; bu sadece değer başka yerden gelirse olur.
             return INVALID;
         }
         InetAddress address;
         try {
-            // A string that starts with a hex digit or ":" and has a colon is parsed as a literal
-            // and never looked up. (InetAddress.ofLiteral, which never looks anything up, is
-            // Java 22.)
+            // Literal olarak okunur, DNS'e sorulmaz (InetAddress.ofLiteral Java 22'de geldi).
             address = InetAddress.getByName(stripZone(remoteAddress));
         } catch (UnknownHostException e) {
             return INVALID;
         }
         if (address instanceof Inet4Address) {
-            // An IPv4-mapped IPv6 address ("::ffff:198.51.100.7") is that IPv4 client.
+            // IPv4'e eşlenmiş IPv6 adresi ("::ffff:198.51.100.7") o IPv4 istemcisidir.
             return address.getHostAddress();
         }
         byte[] bytes = address.getAddress();

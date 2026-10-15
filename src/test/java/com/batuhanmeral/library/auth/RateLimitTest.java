@@ -28,9 +28,8 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * The limits on POST /auth/login and POST /auth/register, against a real Redis that keeps the
- * counters. The limits here are smaller than the application's, so a test needs only a few
- * requests.
+ * POST /auth/login ve /auth/register sınırları, gerçek Redis ile. Sınırlar küçük tutuldu, birkaç
+ * istek yeter.
  */
 @SpringBootTest(
         properties = {
@@ -44,7 +43,7 @@ import org.testcontainers.utility.DockerImageName;
 @ExtendWith(OutputCaptureExtension.class)
 class RateLimitTest implements DatabaseTest {
 
-    /** redis:8.10.3-alpine, pinned by digest like in docker-compose.yml. */
+    /** redis:8.10.3-alpine, docker-compose.yml'deki gibi digest ile sabit. */
     @ServiceConnection(name = "redis")
     static final GenericContainer<?> REDIS =
             new GenericContainer<>(
@@ -96,7 +95,7 @@ class RateLimitTest implements DatabaseTest {
         assertThat(Long.parseLong(retryAfter)).isBetween(1L, 60L);
     }
 
-    /** The password is not checked at all once the limit is reached: no BCrypt work is done. */
+    /** Sınıra ulaşınca şifre hiç kontrol edilmez, BCrypt çalışmaz. */
     @Test
     void aRefusedLoginDoesNotTellWhetherThePasswordWasRight() {
         for (int i = 0; i < 3; i++) {
@@ -118,8 +117,8 @@ class RateLimitTest implements DatabaseTest {
     }
 
     /**
-     * One IPv6 customer usually gets a whole /64 network, 2^64 addresses. Counted per address, a
-     * client could take a new one for every attempt.
+     * Bir IPv6 müşterisi genelde bütün bir /64 alır; adres başına sayılsa her denemede yeni adres
+     * kullanabilirdi.
      */
     @Test
     void ipv6AddressesOfOneNetworkShareACounter() {
@@ -142,7 +141,7 @@ class RateLimitTest implements DatabaseTest {
         assertThat(login(CLIENT, "correct horse")).hasStatus(HttpStatus.OK);
     }
 
-    /** Redis forgets a counter by itself when its window ends; nothing has to clean up. */
+    /** Pencere bitince Redis sayacı kendisi siler. */
     @Test
     void theCountersLiveInRedisUnderTheApplicationsPrefixAndExpire() {
         login(CLIENT, "correct horse");
@@ -157,11 +156,7 @@ class RateLimitTest implements DatabaseTest {
         assertThat(redis.getExpire(registerKey)).isBetween(61L, Duration.ofHours(1).toSeconds());
     }
 
-    /**
-     * Without Redis the limit cannot be counted. Logging in still works (after the client gives up
-     * waiting for Redis, 500 ms): refusing every login while the cache server is down would be
-     * worse than an hour without a limit. The log says so.
-     */
+    /** Redis yoksa sınır sayılamaz ama giriş çalışır (500 ms bekledikten sonra); log bunu yazar. */
     @Test
     void aRedisThatStopsAnsweringLetsLoginsThrough(CapturedOutput output) {
         REDIS.getDockerClient().pauseContainerCmd(REDIS.getContainerId()).exec();

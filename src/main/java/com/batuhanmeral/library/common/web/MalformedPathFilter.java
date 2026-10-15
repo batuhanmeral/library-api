@@ -16,25 +16,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Answers 400 for a request path that Spring cannot parse, such as {@code /categories/1;x=%zz}: an
- * invalid percent-encoding in a path parameter, which Tomcat passes on without decoding.
+ * Spring'in parse edemediği yol için 400 döner, örn. {@code /categories/1;x=%zz}.
  *
- * <p>Without this filter such a path fails in the first component that parses it with an
- * IllegalArgumentException: a 500, Tomcat's HTML error page and several stack traces, because the
- * error page fails on the same path again. Spring Security's firewall rejects every ";" in a path,
- * but Spring Security 7 parses the path before its firewall runs (a ServletRequestPathFilter in
- * front of its chain), so the firewall never sees this one.
- *
- * <p>The answer is written here, as fixed text, and not by GlobalExceptionHandler: Spring MVC also
- * decodes the path while writing a response (to choose a Content-Disposition), and would fail on it
- * once more. Runs right after RequestIdFilter, so the answer still has a request id.
+ * <p>Bu filter olmadan 500, Tomcat'in HTML sayfası ve birkaç stack trace çıkar; Spring Security 7
+ * yolu firewall'dan önce parse eder. Cevap burada sabit metinle yazılır, Spring MVC cevap yazarken
+ * yolu yine parse ederdi.
  */
 @Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class MalformedPathFilter extends OncePerRequestFilter {
 
-    /** The same problem GlobalExceptionHandler writes for the firewall's rejections. */
+    /** GlobalExceptionHandler'ın firewall retleri için yazdığı problemin aynısı. */
     static final String BODY =
             """
             {"type":"about:blank","title":"Bad Request","status":400,\
@@ -47,13 +40,13 @@ public class MalformedPathFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         try {
-            // The same parsing Spring MVC and Spring Security do later, without caching the result.
+            // Spring MVC ve Spring Security'nin sonra yaptığı parse, sonucu cache'lemeden.
             RequestPath.parse(request.getRequestURI(), request.getContextPath());
         } catch (IllegalArgumentException e) {
-            // The path itself is not logged: it is what could not be trusted.
+            // Yol log'lanmaz: güvenilmeyen kısım o.
             log.info("Request rejected: the path could not be parsed");
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            // JSON is UTF-8 by definition; no charset parameter, like Spring's own responses.
+            // JSON tanım gereği UTF-8; charset parametresi yok.
             response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
             response.getOutputStream().write(BODY.getBytes(StandardCharsets.UTF_8));
             return;

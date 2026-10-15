@@ -16,8 +16,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * Web layer only, for a failure that is hard to cause with the real service. The security filters
- * are left out: the login endpoint is public, and this is about the error response.
+ * Sadece web katmanı, gerçek service ile oluşturması zor bir hata için. Security filter'ları
+ * dışarıda.
  */
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -29,9 +29,8 @@ class AuthControllerTest {
 
     @Test
     void aLoginThatFailsInsideTheServerIs500NotA401() {
-        // DaoAuthenticationProvider wraps any exception of the UserDetailsService (the database
-        // is down, for example) in this AuthenticationException. It is not the client's fault:
-        // telling the client to log in would hide the outage.
+        // DaoAuthenticationProvider UserDetailsService'in her hatasını (örn. veritabanı kapalı)
+        // bununla sarar; istemcinin hatası değil.
         when(authService.login(any()))
                 .thenThrow(
                         new InternalAuthenticationServiceException(

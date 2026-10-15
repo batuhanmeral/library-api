@@ -16,22 +16,11 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Reads the {@code Authorization: Bearer <token>} header and, for a valid token, tells Spring
- * Security who sent the request. It runs inside Spring Security's filter chain, before the filter
- * that checks the rules of SecurityConfig, so those rules see the user.
+ * {@code Authorization: Bearer <token>} header'ını okur ve geçerli token'ın kullanıcısını
+ * SecurityContext'e koyar.
  *
- * <ul>
- *   <li>No bearer token: the request goes on without a user (anonymous). Public endpoints answer
- *       it; the others answer 401.
- *   <li>A valid token: an Authentication with the user and the role ("ROLE_MEMBER") is put into the
- *       SecurityContext for this request only. Nothing is kept between requests (stateless).
- *   <li>An invalid or expired token: 401 at once, even on a public endpoint. A client that sends a
- *       token expects to act as its user; serving it anonymously would hide the problem.
- * </ul>
- *
- * <p>Not a Spring bean on purpose. Spring Boot registers every Filter bean with the servlet
- * container, so as a bean it would also run outside Spring Security, a second time for every
- * request. SecurityConfig creates it and adds it to the security chain only.
+ * <p>Token yoksa istek anonim devam eder; geçersiz token herkese açık uçta bile 401 alır. Bilerek
+ * bean değil: Filter bean'leri servlet container'a da kaydedilir ve iki kez çalışırdı.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -66,8 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             entryPoint.commence(request, response, e);
             return;
         }
-        // authenticated(...) marks the token as already checked; no AuthenticationManager is
-        // asked again. There are no credentials to keep (null).
+        // authenticated(...) token'ı kontrol edilmiş sayar; saklanacak credential yok (null).
         UsernamePasswordAuthenticationToken authentication =
                 UsernamePasswordAuthenticationToken.authenticated(
                         user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.role())));

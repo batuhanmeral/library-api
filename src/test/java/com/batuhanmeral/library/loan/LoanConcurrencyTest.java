@@ -40,12 +40,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Members borrow the same book at the same moment. All requests must read the book before any of
- * them commits, or the later ones simply see the earlier loans. The first two tests call
- * LoanService inside an outer transaction (LoanService.borrow joins it, propagation REQUIRED) that
- * waits at a barrier. The tests of LoanFacade cannot wrap it in a transaction (each retry needs a
- * new one), so the barrier sits in LoanMapper.toResponse, which LoanService calls inside its
- * transaction after it has read and changed the book and before it commits.
+ * Üyeler aynı kitabı aynı anda alır. Tüm istekler, hiçbiri commit etmeden kitabı okumalı. İlk iki
+ * test dış transaction'da bariyerde bekler; LoanFacade testlerinde bariyer LoanMapper.toResponse
+ * içinde, commit'ten hemen önce.
  */
 @SpringBootTest
 class LoanConcurrencyTest implements DatabaseTest {
@@ -109,7 +106,7 @@ class LoanConcurrencyTest implements DatabaseTest {
 
     @Test
     void concurrentBorrowsOfDifferentBooksCannotPassTheLoanLimit() throws Exception {
-        // Two open loans; the limit is 3. Different books, so Book.version does not help here.
+        // İki açık ödünç, sınır 3. Kitaplar farklı, Book.version burada yardım etmez.
         loanService.borrow(firstMember, new LoanRequest(saveBook("Dune Messiah")));
         loanService.borrow(firstMember, new LoanRequest(saveBook("Children of Dune")));
         long third = saveBook("God Emperor of Dune");
@@ -117,9 +114,8 @@ class LoanConcurrencyTest implements DatabaseTest {
         CountDownLatch firstHasBorrowed = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            // A borrows and keeps its transaction open for a moment; B borrows meanwhile.
-            // Without a lock B counts 2 open loans (A has not committed) and the member ends
-            // up with 4.
+            // A ödünç alır ve transaction'ını bir süre açık tutar, B araya girer. Kilit olmasa B 2
+            // açık ödünç sayar ve üye 4'e çıkar.
             Future<String> a =
                     executor.submit(() -> {
                         new TransactionTemplate(transactionManager)
@@ -157,10 +153,10 @@ class LoanConcurrencyTest implements DatabaseTest {
         BorrowRace race = borrowAtOnce(book, members);
 
         assertThat(race.outcomes()).hasSize(5).containsOnly("borrowed");
-        // More than one pass through the mapper per member: some borrows lost a race and ran again.
+        // Üye başına birden fazla mapper geçişi: bazı ödünçler yarışı kaybedip tekrar çalıştı.
         assertThat(race.attempts()).isGreaterThan(5);
         assertThat(availableCopies(book)).isZero();
-        // Every attempt announced a loan, but only the five committed ones sent an email.
+        // Her deneme ödünç duyurdu, ama sadece commit edilen beşi e-posta gönderdi.
         verify(email, times(5)).send(any(), anyString());
     }
 
@@ -174,15 +170,15 @@ class LoanConcurrencyTest implements DatabaseTest {
         assertThat(race.outcomes())
                 .containsExactlyInAnyOrder("borrowed", "BOOK_NOT_AVAILABLE", "BOOK_NOT_AVAILABLE");
         assertThat(availableCopies(book)).isZero();
-        // Three attempts announced a loan before the race was decided; two were rolled back.
+        // Yarış bitmeden üç deneme ödünç duyurdu; ikisi geri alındı.
         verify(email, times(1)).send(any(), anyString());
     }
 
     private record BorrowRace(List<String> outcomes, int attempts) {}
 
     /**
-     * Every member borrows the book through LoanFacade at the same time. The first attempt of each
-     * waits in the mapper until all have read the book, so all but one lose the race at commit.
+     * Her üye kitabı LoanFacade ile aynı anda alır; ilk denemeler hepsi kitabı okuyana kadar
+     * mapper'da bekler, biri hariç hepsi commit'te kaybeder.
      */
     private BorrowRace borrowAtOnce(long bookId, List<Long> memberIds) throws Exception {
         int count = memberIds.size();

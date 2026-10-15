@@ -10,17 +10,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * Measures how long each public method of a {@code @Service} class takes, without a line of timing
- * code in the services themselves: a cross-cutting concern, kept in one place.
+ * Her {@code @Service} public metodunun süresini ölçer. Her çağrı DEBUG'a, eşiği aşanlar WARN'a
+ * yazılır; argüman ve sonuç log'lanmaz.
  *
- * <p>Every call is logged at DEBUG ({@code BookService.findById took 3 ms}); a call that takes at
- * least library.logging.slow-call-threshold is a WARN ({@code Slow call: ...}). Arguments and
- * results are not logged: they may hold personal data, and the request log already says what was
- * asked.
- *
- * <p>Order: in front of the audit aspect and the transaction, so the time includes the commit. The
- * one exception is {@code @Retryable} (LoanFacade): Spring always puts the retry interceptor in
- * front of a bean's other advice, so there each attempt is timed on its own.
+ * <p>Audit aspect'inin ve transaction'ın önünde çalışır, süreye commit dahildir. {@code @Retryable}
+ * istisnadır: orada her deneme ayrı ölçülür.
  */
 @Slf4j
 @Aspect
@@ -34,10 +28,7 @@ public class ExecutionTimeAspect {
         this.slowCallNanos = properties.slowCallThreshold().toNanos();
     }
 
-    /**
-     * The pointcut: public methods ({@code execution(public * *(..))}) of classes annotated with
-     * {@code @Service} ({@code @within}) in this application ({@code within}).
-     */
+    /** Bu uygulamadaki {@code @Service} sınıflarının public metodları. */
     @Around(
             "execution(public * *(..))"
                     + " && @within(org.springframework.stereotype.Service)"
@@ -58,7 +49,7 @@ public class ExecutionTimeAspect {
     private void log(ProceedingJoinPoint call, long nanos, Throwable failure) {
         boolean slow = nanos >= slowCallNanos;
         if (!slow && !log.isDebugEnabled()) {
-            return; // Most calls, in production: do not even build the message.
+            return; // Production'da çoğu çağrı: mesaj hiç kurulmaz.
         }
         long millis = TimeUnit.NANOSECONDS.toMillis(nanos);
         String what =
@@ -77,7 +68,7 @@ public class ExecutionTimeAspect {
         }
     }
 
-    /** {@code BookService.findById}: the class the method is declared in, not the proxy's. */
+    /** Proxy'nin değil, metodun tanımlandığı sınıfın adı. */
     private static String nameOf(ProceedingJoinPoint call) {
         return call.getSignature().getDeclaringType().getSimpleName()
                 + "."

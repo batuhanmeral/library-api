@@ -10,18 +10,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * The parts of the OpenAPI description that springdoc cannot read from the controllers: the title,
- * and how a client authenticates.
- *
- * <p>Every operation needs a bearer token unless it says otherwise: public operations carry an
- * empty {@code @SecurityRequirements}, which replaces this default with "none". In Swagger UI,
- * "Authorize" takes the token from POST /auth/login once, and every request that needs it sends it
- * in the Authorization header.
+ * springdoc'un controller'lardan okuyamadığı OpenAPI parçaları: başlık ve kimlik doğrulama. Her
+ * işlem varsayılan olarak bearer token ister; herkese açık olanlarda boş
+ * {@code @SecurityRequirements} var.
  */
 @Configuration(proxyBeanMethods = false)
 public class OpenApiConfig {
 
-    /** The name the operations refer to; any name works as long as both sides use it. */
+    /** İşlemlerin başvurduğu ad. */
     public static final String BEARER_AUTH = "bearerAuth";
 
     @Bean

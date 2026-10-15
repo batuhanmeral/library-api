@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Starts the nightly overdue check by hand. Administrators only (SecurityConfig: /admin/**). */
+/** Gece işini elle başlatır; sadece admin (SecurityConfig: /admin/**). */
 @Tag(name = "Admin jobs")
 @RestController
 @RequiredArgsConstructor
@@ -21,11 +21,7 @@ public class OverdueCheckController {
     private final OverdueLoanJob job;
     private final OverdueLoanJobRunner runner;
 
-    /**
-     * 202 Accepted: the job has started, not finished. The claim is taken here, in the request's
-     * thread, so a second request gets its 409 at once instead of a 202 for a run that never
-     * happens.
-     */
+    /** 202: iş başladı, bitmedi. Hak burada alınır, ikinci istek hemen 409 alır. */
     @Auditable(action = AuditAction.OVERDUE_CHECK_START)
     @PostMapping("/overdue-check")
     public ResponseEntity<Void> startOverdueCheck() {
@@ -36,7 +32,7 @@ public class OverdueCheckController {
         try {
             runner.runClaimed();
         } catch (RuntimeException e) {
-            // The executor refused the task (queue full, shutting down): nobody will run it.
+            // Executor işi reddetti (kuyruk dolu ya da kapanıyor): çalıştıran olmayacak.
             job.release();
             throw e;
         }

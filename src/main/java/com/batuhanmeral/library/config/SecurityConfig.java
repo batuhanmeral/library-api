@@ -20,12 +20,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Who may call what, and how a caller proves who they are.
- *
- * <p>A SecurityFilterChain bean is the current way to configure Spring Security; the old
- * WebSecurityConfigurerAdapter base class was removed in Spring Security 6. Defining this bean
- * turns Spring Boot's default chain off (every endpoint behind a login form with a generated
- * password).
+ * Kim neyi çağırabilir ve çağıran kim olduğunu nasıl kanıtlar. Bu bean Spring Boot'un varsayılan
+ * zincirini kapatır.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -37,15 +33,13 @@ public class SecurityConfig {
             HttpSecurity http, JwtService jwtService, SecurityErrorHandler errors)
             throws Exception {
         http
-                // CSRF protection guards against a browser sending its cookies along with a request
-                // another site made it send. This API reads the user from the Authorization
-                // header, which a browser never adds by itself, and sets no cookies.
+                // CSRF kapalı: kullanıcı tarayıcının kendiliğinden eklemediği Authorization
+                // header'ından okunur, cookie yok.
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
-                // No HTTP session: every request brings its token, nothing is remembered between
-                // requests.
+                // HTTP session yok: her istek kendi token'ını getirir.
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(
@@ -53,11 +47,11 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(handling ->
                         handling.authenticationEntryPoint(errors).accessDeniedHandler(errors))
-                // Rules are checked from top to bottom; the first one that matches decides.
+                // Kurallar yukarıdan aşağı denenir, ilk eşleşen karar verir.
                 .authorizeHttpRequests(auth ->
                         auth
-                                // Error pages Tomcat forwards to after a request failed;
-                                // the original request was already checked.
+                                // Tomcat'in hata sonrası yönlendirdiği sayfalar; asıl istek zaten
+                                // kontrol edildi.
                                 .dispatcherTypeMatchers(DispatcherType.ERROR)
                                 .permitAll()
                                 .requestMatchers(
@@ -65,7 +59,7 @@ public class SecurityConfig {
                                         API + "/auth/register",
                                         API + "/auth/login")
                                 .permitAll()
-                                // The catalogue: anyone reads it, admins change it.
+                                // Katalog: herkes okur, admin değiştirir.
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         API + "/categories/**",
@@ -87,18 +81,15 @@ public class SecurityConfig {
                                 .hasRole("MEMBER")
                                 .requestMatchers(HttpMethod.GET, API + "/loans")
                                 .hasRole("ADMIN")
-                                // The owner or an admin; LoanService checks the owner.
+                                // Sahibi ya da admin; sahipliği LoanService kontrol eder.
                                 .requestMatchers(HttpMethod.GET, API + "/loans/*")
                                 .authenticated()
                                 .requestMatchers(HttpMethod.POST, API + "/loans/*/return")
                                 .authenticated()
                                 .requestMatchers(API + "/admin/**")
                                 .hasRole("ADMIN")
-                                // Actuator: a load balancer or a container runtime asks for
-                                // health without a token, so health (with its liveness and
-                                // readiness groups) and the build info are public. The health
-                                // details and the metrics are for admins
-                                // (management.endpoint.health.roles).
+                                // Actuator: health, liveness/readiness ve info token'sız açık;
+                                // detaylar ve metrikler admin için.
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/actuator/health",
@@ -107,9 +98,7 @@ public class SecurityConfig {
                                 .permitAll()
                                 .requestMatchers("/actuator/**")
                                 .hasRole("ADMIN")
-                                // The OpenAPI description and Swagger UI (springdoc). They show
-                                // the paths and fields of the API, which every client sees
-                                // anyway; the prod profile turns them off unless asked for.
+                                // OpenAPI ve Swagger UI; prod profilinde istenmedikçe kapalı.
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/v3/api-docs",
@@ -117,26 +106,21 @@ public class SecurityConfig {
                                         "/swagger-ui.html",
                                         "/swagger-ui/**")
                                 .permitAll()
-                                // Deny by default: a new endpoint is closed until a rule
-                                // above opens it.
+                                // Varsayılan ret: yeni uç nokta, bir kural açana kadar kapalı.
                                 .anyRequest()
                                 .denyAll());
         return http.build();
     }
 
-    /**
-     * BCrypt hashes with a random salt and is slow on purpose (strength 10: 2^10 rounds, about 100
-     * ms), so a stolen table of hashes cannot be reversed by trying billions of passwords.
-     */
+    /** BCrypt rastgele salt kullanır ve bilerek yavaştır (strength 10, yaklaşık 100 ms). */
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     /**
-     * Checks an email and password at login: DaoAuthenticationProvider loads the user with the
-     * UserDetailsService and compares the password with the hash. Declaring this bean also keeps
-     * Spring Boot from creating its default in-memory user.
+     * Girişte e-posta ve şifreyi kontrol eder. Bu bean Spring Boot'un varsayılan bellek içi
+     * kullanıcısını da engeller.
      */
     @Bean
     AuthenticationManager authenticationManager(

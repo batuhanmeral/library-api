@@ -1,8 +1,7 @@
 package com.batuhanmeral.library.common.audit;
 
 /**
- * The changes that are written to the audit log. The target of an action is the id of the resource
- * it changes; where that differs, the comment says what it is.
+ * Audit log'a yazılan değişiklikler. Hedef, değişen kaynağın id'sidir; farklıysa yanında yazıyor.
  */
 public enum AuditAction {
     CATEGORY_CREATE,
@@ -12,20 +11,17 @@ public enum AuditAction {
     AUTHOR_UPDATE,
     AUTHOR_DELETE,
     BOOK_CREATE,
-    /** PUT and PATCH. */
+    /** PUT ve PATCH. */
     BOOK_UPDATE,
     BOOK_DELETE,
-    /** Target: the book, so that a refused borrow names it too. */
+    /** Hedef: kitap, reddedilen ödünçte de görünsün diye. */
     LOAN_BORROW,
-    /** Target: the loan. */
+    /** Hedef: ödünç. */
     LOAN_RETURN,
-    /** No target. */
+    /** Hedef yok. */
     OVERDUE_CHECK_START,
-    /** Target: the new user. The actor is "system": nobody is logged in yet. */
+    /** Hedef: yeni kullanıcı. Aktör "system": henüz giriş yapan yok. */
     USER_REGISTER,
-    /**
-     * No target and actor "system": the address tried is personal data and may belong to nobody.
-     * Failed logins are what matters here; the request id leads to the rest of the request.
-     */
+    /** Hedef yok, aktör "system": denenen e-posta kişisel veri ve kimseye ait olmayabilir. */
     LOGIN
 }

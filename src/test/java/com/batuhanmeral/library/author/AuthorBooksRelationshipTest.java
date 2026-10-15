@@ -12,7 +12,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
-/** Author.books is the inverse side of Book.author; only Book.author writes the foreign key. */
+/** Author.books, Book.author'ın ters tarafı; foreign key'i sadece Book.author yazar. */
 @DataJpaTest
 @Import(JpaAuditingConfig.class)
 class AuthorBooksRelationshipTest implements DatabaseTest {
@@ -41,7 +41,7 @@ class AuthorBooksRelationshipTest implements DatabaseTest {
         Book book = new Book("A Wizard of Earthsea", 2);
         author.getBooks().add(book);
 
-        // Hibernate ignores Author.books when writing; book.author is still null.
+        // Hibernate yazarken Author.books'u yok sayar; book.author hâlâ null.
         assertThatThrownBy(() -> entityManager.persistAndFlush(book))
                 .hasMessageContaining("author");
     }
@@ -53,8 +53,8 @@ class AuthorBooksRelationshipTest implements DatabaseTest {
         book.setAuthor(author);
         entityManager.persistAndFlush(book);
 
-        // The row is in the database, but the Author object in this persistence context was
-        // loaded before and still has an empty list.
+        // Satır veritabanında, ama bu persistence context'teki Author nesnesi önceden yüklendi ve
+        // listesi boş.
         assertThat(author.getBooks()).isEmpty();
     }
 }

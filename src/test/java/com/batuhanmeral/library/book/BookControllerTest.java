@@ -16,10 +16,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-/** Web layer only: how a lost race on a book becomes an error response. */
+/** Sadece web katmanı: kitapta kaybedilen yarışın hata cevabına dönüşmesi. */
 @WebMvcTest(BookController.class)
-// The security filters are left out: these tests are about the error responses of the web layer.
-// Who may call what is tested with the whole application (SecurityRulesTest).
+// Security filter'ları dışarıda; yetkiler SecurityRulesTest'te test edilir.
 @AutoConfigureMockMvc(addFilters = false)
 class BookControllerTest {
 

@@ -8,10 +8,7 @@ import java.time.Duration;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * A window shorter than a second would expire the counter at once (PEXPIRE 0 deletes the key), so
- * the limit would never be reached; the application refuses to start with one instead.
- */
+/** Bir saniyeden kısa pencere sayacı hemen silerdi; uygulama böyle bir ayarla başlamaz. */
 class RateLimitPropertiesTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();

@@ -18,19 +18,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 
 /**
- * Adds a book, first asking Open Library for the details the request leaves out.
+ * Kitap ekler; istekte eksik olan bilgileri önce Open Library'ye sorar.
  *
- * <p>This class has no {@code @Transactional} on purpose. The HTTP call may take seconds (up to the
- * timeouts); inside a transaction it would hold a database connection from the pool all that time,
- * and with the pool's ten connections, ten slow lookups would stop every other request. So the
- * lookup runs first, without a transaction, and only the save is a transaction, in
- * BookService.create. That method is in another bean: called from here it goes through the proxy. A
- * {@code @Transactional} method of this class called with {@code this} would not start a
- * transaction at all (self-invocation, step 6).
- *
- * <p>Values sent in the request win; Open Library only fills in the gaps. When the request has a
- * title, a failed lookup does not stop the book from being saved. Without a title, the lookup is
- * the only source of one: an unknown ISBN is a 422, an unreachable Open Library a 503.
+ * <p>Bilerek {@code @Transactional} yok: yavaş HTTP çağrısı transaction içinde havuzdan bağlantı
+ * tutardı. Önce sorgu yapılır, sadece kayıt başka bean'deki BookService.create içinde
+ * transaction'dır. İstekteki değerler kazanır; başlık yoksa bilinmeyen ISBN 422, ulaşılamayan Open
+ * Library 503 olur.
  */
 @Slf4j
 @Service
@@ -64,7 +57,7 @@ public class BookCreationService {
 
     private OpenLibraryBook lookUp(NewBookRequest request) {
         String isbn = request.isbn();
-        // A request that would fail anyway (taken ISBN, unknown author) must not cost a call.
+        // Zaten düşecek bir istek (alınmış ISBN, bilinmeyen yazar) dış çağrıya mal olmasın.
         bookService.checkNewBook(isbn, request.authorId());
         Optional<OpenLibraryBook> found;
         try {
@@ -90,9 +83,7 @@ public class BookCreationService {
         return found.orElse(new OpenLibraryBook(null, null, null, null));
     }
 
-    /**
-     * The ISBN passed {@code @Pattern} (digits and X only), so it is safe in a message and a log.
-     */
+    /** ISBN {@code @Pattern}'dan geçti (rakam ve X), mesaja ve log'a yazmak güvenli. */
     private static BusinessRuleException isbnNotFound(String isbn) {
         return new BusinessRuleException(
                 ErrorCode.ISBN_NOT_FOUND,

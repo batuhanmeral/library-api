@@ -1,4 +1,4 @@
 package com.batuhanmeral.library.notification;
 
-/** Where a message can go. Either value may be null; each channel uses the one it needs. */
+/** Mesajın gidebileceği adresler; her kanal ihtiyacı olanı kullanır. */
 public record Recipient(String email, String phone) {}

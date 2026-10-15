@@ -10,10 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 
-/**
- * The MDC lives in a ThreadLocal: a task handed to another thread does not see the values of the
- * thread that submitted it, unless the decorator copies them over.
- */
+/** MDC ThreadLocal'da durur: decorator kopyalamazsa başka thread'deki iş değerleri görmez. */
 class MdcTaskDecoratorTest {
 
     private final MdcTaskDecorator decorator = new MdcTaskDecorator();
@@ -42,7 +39,7 @@ class MdcTaskDecoratorTest {
         MDC.put("requestId", "req-1");
         AtomicReference<String> seen = new AtomicReference<>();
         Runnable task = decorator.decorate(() -> seen.set(MDC.get("requestId")));
-        // Changes after submitting do not reach the task: it got a copy.
+        // Gönderdikten sonraki değişiklik işe ulaşmaz: iş bir kopya aldı.
         MDC.put("requestId", "req-2");
 
         executor.submit(task).get(5, TimeUnit.SECONDS);

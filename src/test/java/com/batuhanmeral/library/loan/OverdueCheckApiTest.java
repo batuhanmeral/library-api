@@ -40,9 +40,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * POST /admin/jobs/overdue-check answers at once and runs the job on another thread. The test
- * cannot know when that thread is done, so it polls the database with Awaitility until the result
- * shows up (or a timeout fails the test) instead of sleeping for a guessed time.
+ * POST /admin/jobs/overdue-check hemen cevap verir, iş başka thread'de çalışır. Test tahmini süre
+ * uyumak yerine Awaitility ile sonucu bekler.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -108,14 +107,11 @@ class OverdueCheckApiTest implements DatabaseTest {
         await().atMost(Duration.ofSeconds(10))
                 .untilAsserted(() -> assertThat(statusOfTheLoan()).isEqualTo("OVERDUE"));
         await().atMost(Duration.ofSeconds(10)).until(() -> !job.isRunning());
-        // The job ran on a thread of the task executor (spring.task.execution), not this one.
+        // İş bu thread'de değil, task executor'ın thread'inde çalıştı.
         assertThat(smsThread.get()).startsWith("library-task-");
     }
 
-    /**
-     * The job runs on another thread; the request id travels with it (MdcTaskDecorator), so its log
-     * lines can be found by the id the response returned.
-     */
+    /** İş başka thread'de çalışır, request id onunla gider (MdcTaskDecorator). */
     @Test
     void theBackgroundJobLogsWithTheRequestIdOfTheRequestThatStartedIt() {
         AtomicReference<String> requestIdInTheJob = new AtomicReference<>();

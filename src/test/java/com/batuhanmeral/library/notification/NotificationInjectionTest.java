@@ -12,9 +12,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * Two beans implement NotificationService. Which one an injection point gets depends on how it
- * asks: by type alone it gets the {@code @Primary} one, with a qualifier the named one, and as a
- * collection all of them.
+ * NotificationService'i iki bean implement eder: sadece tiple istenince {@code @Primary}, qualifier
+ * ile adı verilen, koleksiyon olarak hepsi gelir.
  */
 @SpringBootTest
 class NotificationInjectionTest implements DatabaseTest {

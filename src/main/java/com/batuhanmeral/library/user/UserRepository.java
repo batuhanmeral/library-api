@@ -7,15 +7,14 @@ import org.springframework.data.jpa.repository.Lock;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    /** The address must already be normalized (User.normalizeEmail). */
+    /** E-posta önceden normalize edilmiş olmalı (User.normalizeEmail). */
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
 
     /**
-     * Reads the user and locks the row until the transaction ends ({@code select ... for no key
-     * update} on PostgreSQL). Another transaction that asks for the same lock waits. "Locked" in
-     * the name is only a description; Spring Data ignores words between "find" and "By".
+     * Kullanıcıyı okur ve satırı transaction bitene kadar kilitler; aynı kilidi isteyen bekler.
+     * Adındaki "Locked" sadece açıklamadır, Spring Data yok sayar.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<User> findLockedById(Long id);

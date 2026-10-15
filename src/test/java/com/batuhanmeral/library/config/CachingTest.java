@@ -33,13 +33,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * What is cached and when an entry is dropped. The tests use Spring's in-memory cache
- * (spring.cache.type=simple) instead of Redis; the annotations, keys and evictions are the same,
- * and the context starts without a container. What only Redis shows (JSON values, TTLs, a Redis
- * that stops answering) is in RedisCacheTest. The other tests run without a cache
- * (spring.cache.type=none), so they never see an entry left behind by another test.
- *
- * <p>Hibernate's statistics count the SQL statements: a request answered from the cache runs none.
+ * Neyin cache'lendiği ve kaydın ne zaman silindiği, bellek içi cache ile
+ * (spring.cache.type=simple). Sadece Redis'in gösterdikleri RedisCacheTest'te. Hibernate
+ * istatistikleri SQL sayar: cache'ten gelen cevap sorgu çalıştırmaz.
  */
 @SpringBootTest(
         properties = {
@@ -182,9 +178,7 @@ class CachingTest implements DatabaseTest {
     }
 
     /**
-     * The cache sits outside the transaction: a hit returns before a transaction (and a database
-     * connection) is taken, and an entry is dropped only after the change is committed. Otherwise a
-     * request in between could read the old row and put it back into the cache.
+     * Cache transaction'ın dışında: isabet bağlantı almadan döner, kayıt commit'ten sonra silinir.
      */
     @Test
     void theCacheWrapsTheTransaction() {

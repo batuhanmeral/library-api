@@ -6,13 +6,13 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Adds to Spring MVC's configuration without replacing it. A WebMvcConfigurer only contributes;
- * {@code @EnableWebMvc} would switch off Spring Boot's MVC auto-configuration altogether.
+ * Spring MVC ayarlarına ekleme yapar; {@code @EnableWebMvc} Boot'un otomatik ayarını tamamen
+ * kapatırdı.
  */
 @Configuration(proxyBeanMethods = false)
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    /** Interceptors, unlike filters, can be limited to paths: only API calls are logged. */
+    /** Interceptor yola göre sınırlanabilir: sadece API çağrıları log'lanır. */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new RequestLoggingInterceptor()).addPathPatterns("/api/**");

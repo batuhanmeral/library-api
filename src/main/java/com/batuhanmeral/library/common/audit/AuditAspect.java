@@ -23,25 +23,16 @@ import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Component;
 
 /**
- * Writes one audit line for every call of an {@link Auditable} method:
+ * Her {@link Auditable} çağrısı için "audit" logger'ına bir satır yazar:
  *
  * <pre>
  * action=BOOK_DELETE target=7 actor=user:1 outcome=SUCCESS
  * action=BOOK_DELETE target=7 actor=user:1 outcome=FAILURE reason=RESOURCE_IN_USE
  * </pre>
  *
- * The lines go to a logger of their own named "audit", so they can be sent to their own file or
- * kept longer than the rest of the log. The request id is on them like on every line (MDC).
- *
- * <p>The actor comes from the same AuditorAware as the createdBy columns: the user of the request's
- * token ("user:12"), or "system" without one. A failure names only the error code (or the exception
- * type), never the exception's message, which may repeat what the user sent.
- *
- * <p>Order: outside the transaction proxy. "SUCCESS" is written after the commit, so a change that
- * fails while being committed is audited as a failure. {@code @Retryable} cannot be wrapped this
- * way (its interceptor always comes first), so borrowing and returning are audited on
- * LoanController, outside LoanFacade's retries: a borrow that needed three attempts is one audited
- * action.
+ * <p>Hata durumunda sadece hata kodu yazılır, mesaj değil. Transaction proxy'sinin dışında çalışır,
+ * SUCCESS commit'ten sonra yazılır. {@code @Retryable} hep en dışta olduğu için ödünç işlemleri
+ * LoanController'da audit edilir.
  */
 @Aspect
 @Component
@@ -62,7 +53,7 @@ public class AuditAspect {
 
     private final ParameterNameDiscoverer parameterNames = new DefaultParameterNameDiscoverer();
 
-    /** Parsed once per expression text; parsing on every call would waste time. */
+    /** Her ifade bir kez parse edilir. */
     private final Map<String, Expression> expressions = new ConcurrentHashMap<>();
 
     public AuditAspect(AuditorAware<String> auditorAware) {
@@ -70,8 +61,8 @@ public class AuditAspect {
     }
 
     /**
-     * {@code @annotation(auditable)} matches methods that carry the annotation and binds it to the
-     * parameter of the same name, so the advice can read its attributes.
+     * {@code @annotation(auditable)} anotasyonu taşıyan metodları eşler ve onu aynı adlı
+     * parametreye bağlar.
      */
     @Around("@annotation(auditable)")
     public Object audit(ProceedingJoinPoint call, Auditable auditable) throws Throwable {
@@ -107,8 +98,8 @@ public class AuditAspect {
                             .getValue(contextFor(method, call.getArgs(), result));
             return value == null ? NONE : value.toString();
         } catch (RuntimeException e) {
-            // A wrong expression is a bug in the annotation (AuditTrailTest parses them all), but
-            // the change is already committed here: the call must not fail because of the audit.
+            // Yanlış ifade anotasyondaki bir hatadır (AuditTrailTest hepsini parse eder);
+            // değişiklik zaten commit edildi, çağrı audit yüzünden düşmemeli.
             log.warn(
                     "Audit target '{}' of {} could not be evaluated: {}",
                     auditable.target(),
@@ -119,9 +110,8 @@ public class AuditAspect {
     }
 
     /**
-     * Parameters by name and the result, nothing else. SimpleEvaluationContext allows reading them
-     * and calling their methods ({@code #result?.id()}), but no types ({@code T(...)}), no
-     * constructors and no bean references, unlike the full StandardEvaluationContext.
+     * Sadece parametreler ve sonuç. SimpleEvaluationContext tip, constructor ve bean referansına
+     * izin vermez.
      */
     private EvaluationContext contextFor(Method method, Object[] args, Object result) {
         SimpleEvaluationContext context =

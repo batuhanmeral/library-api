@@ -11,8 +11,8 @@ import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
- * Turns on JPA auditing. It lives in its own class instead of on LibraryApplication so that slice
- * tests such as {@code @WebMvcTest}, which have no JPA, do not load it.
+ * JPA auditing'i açar. Ayrı sınıfta, JPA'sı olmayan {@code @WebMvcTest} gibi testler yüklemesin
+ * diye.
  */
 @Configuration
 @EnableJpaAuditing(dateTimeProviderRef = "auditingDateTimeProvider")
@@ -24,8 +24,8 @@ public class JpaAuditingConfig {
     }
 
     /**
-     * Instant.now() has nanoseconds, the timestamp columns keep microseconds. Without truncating,
-     * the value in a create response differs from the one read back from the database later.
+     * Instant.now() nanosaniye, sütunlar mikrosaniye tutar; kırpılmazsa cevaptaki değer
+     * veritabanındakinden farklı olur.
      */
     @Bean
     DateTimeProvider auditingDateTimeProvider() {

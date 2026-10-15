@@ -10,13 +10,11 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * The title search ({@code ?title=dune}) is {@code lower(title) like '%dune%'}: the pattern starts
- * with a wildcard, so an ordinary B-tree index cannot be used and every row is read. The trigram
- * index of V4 (pg_trgm) splits the titles into three-letter pieces and finds the rows that contain
- * all pieces of the pattern.
+ * Başlık araması {@code lower(title) like '%dune%'}: desen joker ile başladığı için B-tree index
+ * kullanılamaz. V4'teki trigram index (pg_trgm) bu sorguya hizmet eder.
  *
- * <p>With a few rows a full scan is cheaper and PostgreSQL rightly picks it; turning sequential
- * scans off for the test's transaction shows whether the index can serve the query at all.
+ * <p>Az satırda tam tarama ucuzdur; test, sequential scan'i kapatıp index'in kullanılabildiğini
+ * gösterir.
  */
 @DataJpaTest
 class TitleSearchIndexTest implements DatabaseTest {
@@ -27,7 +25,7 @@ class TitleSearchIndexTest implements DatabaseTest {
     void theTitleSearchCanUseTheTrigramIndex() {
         jdbcTemplate.execute("set local enable_seqscan = off");
 
-        // The condition as Hibernate writes it for BookSpecifications.titleContains.
+        // Hibernate'in BookSpecifications.titleContains için yazdığı koşul.
         List<String> plan =
                 jdbcTemplate.queryForList(
                         "explain select id from books where lower(title) like ? escape '\\'",

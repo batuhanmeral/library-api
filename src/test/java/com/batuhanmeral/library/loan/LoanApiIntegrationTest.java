@@ -27,11 +27,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * Members are saved with the repository and act with tokens the application's JwtService signs, as
- * if they had logged in; the catalogue is set up with an admin token. Loans that should already
- * exist (an overdue one, for example) are saved the same way. "Today" is read from the
- * application's clock: it is in the library's time zone, which may be a day ahead of or behind the
- * machine's.
+ * Üyeler repository ile kaydedilir ve JwtService'in imzaladığı token'larla davranır; katalog admin
+ * token'ıyla kurulur. "Bugün" uygulama saatinden okunur.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -111,7 +108,7 @@ class LoanApiIntegrationTest implements DatabaseTest {
                 .bodyJson()
                 .extractingPath("$.detail")
                 .isEqualTo("The member already has 3 active loans, the most allowed.");
-        // The request was rejected as a whole: no copy was taken.
+        // İstek bütünüyle reddedildi: kopya alınmadı.
         assertThat(availableCopies(fourth)).isEqualTo(1);
     }
 
@@ -129,8 +126,8 @@ class LoanApiIntegrationTest implements DatabaseTest {
 
     @Test
     void borrowReturns422WhenTheMemberHasALoanPastItsDueDate() {
-        // Borrowed 20 days ago for 14 days. Still ACTIVE: the nightly job that marks it OVERDUE
-        // comes in step 7, but the rule already applies.
+        // 20 gün önce 14 günlüğüne alındı; gece işi henüz çalışmadığı için ACTIVE, ama kural yine
+        // geçerli.
         saveLoan(createBook("Dune", 1), today().minusDays(20));
 
         MvcTestResult result = borrow(createBook("Dune Messiah", 1), memberId);
@@ -163,9 +160,8 @@ class LoanApiIntegrationTest implements DatabaseTest {
 
     @Test
     void borrowReturns422WhenTheBorrowerIsNoLongerAMember() {
-        // An admin token cannot get here (403, see SecurityRulesTest). But a token is not read
-        // again from the database: one issued while the user was a member stays valid after the
-        // role changes, until it expires. The service checks the role the database has now.
+        // Admin token'ı buraya gelemez (403), ama rol değişince eski token süresi dolana kadar
+        // geçerli kalır. Service güncel rolü kontrol eder.
         long bookId = createBook("Dune", 1);
         long adminId =
                 userRepository
@@ -196,7 +192,7 @@ class LoanApiIntegrationTest implements DatabaseTest {
                 .isEqualTo("The member already has this book on loan.");
         assertThat(availableCopies(bookId)).isEqualTo(2);
 
-        // Once the copy is back, the member may borrow the book again.
+        // Kopya dönünce üye kitabı tekrar alabilir.
         returnLoan(loanId);
         assertThat(borrow(bookId, memberId)).hasStatus(HttpStatus.CREATED);
     }
@@ -350,8 +346,7 @@ class LoanApiIntegrationTest implements DatabaseTest {
     void listReturns400ForAnUnknownStatusOrSortField() {
         MvcTestResult unknownStatus = asAdmin(mvc.get().uri(LOANS + "?status=LOST"));
         assertProblem(unknownStatus, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
-        // Spring's own conversion message names the Java type (a class of this application)
-        // and repeats the value; the response has a fixed text instead.
+        // Spring'in mesajı Java tipini ve değeri yazar; cevapta sabit metin var.
         assertThat(unknownStatus)
                 .bodyJson()
                 .extractingPath("$.errors[0].message")
@@ -455,7 +450,7 @@ class LoanApiIntegrationTest implements DatabaseTest {
         return JsonPath.read(body(result), "$.content[*].book.title");
     }
 
-    /** Borrows as the member: the token names the borrower, the body only the book. */
+    /** Üye olarak ödünç alır: token alanı, gövde sadece kitabı söyler. */
     private MvcTestResult borrow(long bookId, long memberId) {
         return mvc.post()
                 .uri(LOANS)
@@ -465,7 +460,7 @@ class LoanApiIntegrationTest implements DatabaseTest {
                 .exchange();
     }
 
-    /** Returns as the member of the test's main member, who borrowed most of the loans. */
+    /** Ödünçlerin çoğunu alan ana test üyesi olarak iade eder. */
     private MvcTestResult returnLoan(long loanId) {
         return returnLoanAs(loanId, TestTokens.member(jwt, memberId));
     }
@@ -484,7 +479,7 @@ class LoanApiIntegrationTest implements DatabaseTest {
                 .exchange();
     }
 
-    /** Catalogue changes (authors, books) are for admins. */
+    /** Katalog değişiklikleri admin için. */
     private MvcTestResult post(String uri, String json) {
         return asAdmin(mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json));
     }

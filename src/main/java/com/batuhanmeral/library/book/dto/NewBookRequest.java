@@ -10,12 +10,11 @@ import jakarta.validation.constraints.Size;
 import java.util.Set;
 
 /**
- * Body of POST /books. Like {@link BookRequest}, except that the title may be left out when an ISBN
- * is given: the missing details then come from Open Library. PUT keeps using BookRequest, so
- * replacing a book still needs a title.
+ * POST /books gövdesi. {@link BookRequest} gibi, ama ISBN varsa başlık boş bırakılabilir; eksikler
+ * Open Library'den gelir.
  *
- * @param isbn ISBN-10 or ISBN-13, digits only (an ISBN-10 may end with X)
- * @param categoryIds may be omitted or empty; at most {@value BookRequest#MAX_CATEGORIES}
+ * @param isbn ISBN-10 ya da ISBN-13, sadece rakam (ISBN-10 X ile bitebilir)
+ * @param categoryIds boş olabilir; en fazla {@value BookRequest#MAX_CATEGORIES}
  */
 @TitleRequiredWithoutIsbn
 public record NewBookRequest(
@@ -32,7 +31,7 @@ public record NewBookRequest(
         return title != null && !title.isBlank();
     }
 
-    /** Whether Open Library could add anything: an ISBN is given and a detail is missing. */
+    /** Open Library bir şey ekleyebilir mi: ISBN var ve bir bilgi eksik. */
     public boolean canBeCompleted() {
         return isbn != null
                 && (!hasTitle()

@@ -3,31 +3,23 @@ package com.batuhanmeral.library.notification;
 import java.util.regex.Pattern;
 
 /**
- * Makes values safe to write to a log. Email addresses and phone numbers are personal data: a log
- * is read by more people, kept longer and copied to more places than the user table, so it gets
- * only enough to tell recipients apart. Text that came from users (a book title) could hold line
- * breaks and forge log lines; it is written on one line.
- *
- * <p>"Line break" is more than \n and \r: some log viewers also break lines at NEL (U+0085) and the
- * Unicode line and paragraph separators, and a right-to-left override (U+202E) makes a line look
- * different from what it holds.
+ * Değerleri log'a yazılabilir hale getirir. E-posta ve telefon maskelenir; kullanıcıdan gelen metin
+ * tek satıra indirilir, sahte log satırı üretemesin.
  */
 final class LogText {
 
     private static final String HIDDEN = "***";
 
     /**
-     * Control characters, ASCII and C1 (Cc); invisible format characters such as direction
-     * overrides and the BOM (Cf); line and paragraph separators (Zl, Zp). {@code \\p{Cntrl}} alone
-     * covers only the ASCII controls.
+     * Kontrol karakterleri (Cc), görünmez biçim karakterleri (Cf), satır ve paragraf ayırıcıları
+     * (Zl, Zp).
      */
     private static final Pattern UNSAFE = Pattern.compile("[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}]");
 
     private LogText() {}
 
     /**
-     * {@code member@example.com} becomes {@code m***@example.com}. The domain starts after the last
-     * "@": a quoted local part may hold one too.
+     * {@code member@example.com}, {@code m***@example.com} olur; alan adı son "@"tan sonra başlar.
      */
     static String maskEmail(String email) {
         int at = email.lastIndexOf('@');
@@ -37,7 +29,7 @@ final class LogText {
         return email.charAt(0) + HIDDEN + email.substring(at);
     }
 
-    /** {@code +1 555 555 0100} becomes {@code ***00}. */
+    /** {@code +1 555 555 0100}, {@code ***00} olur. */
     static String maskPhone(String phone) {
         String digits = phone.replaceAll("\\D", "");
         if (digits.length() < 4) {
@@ -46,7 +38,7 @@ final class LogText {
         return HIDDEN + digits.substring(digits.length() - 2);
     }
 
-    /** Replaces line breaks, tabs, other control and invisible format characters with spaces. */
+    /** Satır sonu, tab ve diğer kontrol ve görünmez karakterleri boşluk yapar. */
     static String oneLine(String text) {
         return UNSAFE.matcher(text).replaceAll(" ");
     }

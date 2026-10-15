@@ -1,9 +1,9 @@
 package com.batuhanmeral.library.auth.dto;
 
 /**
- * Answer of a successful login, in the shape OAuth 2 token responses use.
+ * Başarılı girişin cevabı, OAuth 2 token cevabı biçiminde.
  *
- * @param tokenType always "Bearer": send the token as {@code Authorization: Bearer <accessToken>}
- * @param expiresIn seconds until the token is no longer accepted
+ * @param tokenType hep "Bearer": {@code Authorization: Bearer <accessToken>} olarak gönderilir
+ * @param expiresIn token'ın geçerliliğinin bitmesine kalan saniye
  */
 public record TokenResponse(String accessToken, String tokenType, long expiresIn) {}

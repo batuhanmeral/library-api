@@ -15,21 +15,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * Writes the error responses of Spring Security in the same format as every other error.
- *
- * <p>Spring Security rejects requests in filters, before DispatcherServlet, so a
- * {@code @RestControllerAdvice} never sees those exceptions. Spring Security calls these three
- * hooks instead: the entry point for 401 (no or a bad token), the access denied handler for 403 (a
- * token without the needed role), the request rejected handler for requests its firewall refuses
- * (400). Each passes the exception to Spring MVC's exception resolvers, which call
- * GlobalExceptionHandler as if a controller had thrown it.
+ * Spring Security'nin filter'larda verdiği 401, 403 ve 400 hatalarını Spring MVC'nin
+ * resolver'larına gönderir, böylece GlobalExceptionHandler aynı formatta cevap yazar.
  */
 @Component
 @RequiredArgsConstructor
 public class SecurityErrorHandler
         implements AuthenticationEntryPoint, AccessDeniedHandler, RequestRejectedHandler {
 
-    /** Spring MVC's chain of resolvers, the one DispatcherServlet uses; it includes the advice. */
+    /** DispatcherServlet'in kullandığı resolver zinciri; advice'ı da içerir. */
     @Qualifier("handlerExceptionResolver")
     private final HandlerExceptionResolver resolver;
 
@@ -66,7 +60,7 @@ public class SecurityErrorHandler
             Exception exception,
             int fallbackStatus)
             throws IOException {
-        // No handler: the request never reached a controller.
+        // Handler yok: istek bir controller'a ulaşmadı.
         if (resolver.resolveException(request, response, null, exception) == null) {
             response.sendError(fallbackStatus);
         }

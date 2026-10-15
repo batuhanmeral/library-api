@@ -10,6 +10,6 @@ import org.mapstruct.ReportingPolicy;
         unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface LoanMapper {
 
-    // book -> BookSummary(id, title) and member -> MemberSummary(id, fullName) are generated.
+    // BookSummary ve MemberSummary dönüşümleri de üretilir.
     LoanResponse toResponse(Loan loan);
 }

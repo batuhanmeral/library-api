@@ -7,7 +7,7 @@ import com.batuhanmeral.library.common.error.BusinessRuleException;
 import com.batuhanmeral.library.common.error.ErrorCode;
 import org.junit.jupiter.api.Test;
 
-/** The copy counts change only through these methods; Book has no setters for them. */
+/** Kopya sayıları sadece bu metodlarla değişir; Book'ta setter'ları yok. */
 class BookTest {
 
     @Test

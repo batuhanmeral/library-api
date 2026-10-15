@@ -79,17 +79,17 @@ class AuthApiIntegrationTest implements DatabaseTest {
     @ParameterizedTest
     @ValueSource(
             strings = {
-                // Too short.
+                // Çok kısa.
                 "{\"email\": \"a@example.com\", \"password\": \"short\", \"fullName\": \"A\"}",
-                // 37 characters but 74 bytes in UTF-8: BCrypt reads only the first 72 bytes.
+                // 37 karakter ama UTF-8'de 74 bayt: BCrypt sadece ilk 72 baytı okur.
                 "{\"email\": \"a@example.com\", \"password\": \"ğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğ\","
                         + " \"fullName\": \"A\"}",
-                // Not an email address.
+                // E-posta değil.
                 "{\"email\": \"not-an-email\", \"password\": \"correct horse\", \"fullName\": \"A\"}",
-                // Not a phone number in international form.
+                // Uluslararası biçimde telefon değil.
                 "{\"email\": \"a@example.com\", \"password\": \"correct horse\", \"fullName\": \"A\","
                         + " \"phone\": \"call me\"}",
-                // No name.
+                // Ad yok.
                 "{\"email\": \"a@example.com\", \"password\": \"correct horse\"}"
             })
     void registerValidatesTheRequest(String json) {
@@ -126,14 +126,14 @@ class AuthApiIntegrationTest implements DatabaseTest {
 
         assertProblem(wrongPassword, HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
         assertProblem(unknownEmail, HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
-        // Nothing tells the caller whether the address has an account.
+        // Çağıran, e-postanın hesabı olup olmadığını öğrenemez.
         assertThat(body(unknownEmail)).isEqualTo(body(wrongPassword));
         assertThat(wrongPassword).headers().hasValue(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
     }
 
     @Test
     void anAccountWithoutAUsablePasswordCannotLogIn() {
-        // Like the demo member of the dev profile: "!" is not a BCrypt hash.
+        // dev profilindeki demo üye gibi: "!" bir BCrypt hash'i değil.
         userRepository.save(new User("demo@example.com", "!", "Demo", Role.MEMBER));
 
         assertProblem(
@@ -142,7 +142,7 @@ class AuthApiIntegrationTest implements DatabaseTest {
 
     @Test
     void aLoginPasswordOver72BytesIsRejectedLikeAtRegistration() {
-        // 37 characters, 74 bytes: the same limit as registration, in bytes.
+        // 37 karakter, 74 bayt: kayıttaki bayt sınırının aynısı.
         assertProblem(
                 login("ada@example.com", "ğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğğ"),
                 HttpStatus.BAD_REQUEST,
@@ -162,8 +162,8 @@ class AuthApiIntegrationTest implements DatabaseTest {
     }
 
     /**
-     * The email is looked up inside Spring Security, which wraps any failure of the lookup as an
-     * internal error. A NUL that PostgreSQL refuses is still the client's mistake: 400, not 500.
+     * E-posta Spring Security içinde aranır ve her hata iç hata olarak sarılır. PostgreSQL'in
+     * reddettiği NUL yine istemcinin hatasıdır: 500 değil 400.
      */
     @Test
     void aNulCharacterInTheLoginEmailIs400() {

@@ -4,10 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
-/**
- * The default channel: an injection point that asks only for a NotificationService gets this bean,
- * because it is {@code @Primary}. Logs the email instead of sending it.
- */
+/** Varsayılan kanal ({@code @Primary}). E-postayı göndermez, log'lar. */
 @Slf4j
 @Service
 @Primary

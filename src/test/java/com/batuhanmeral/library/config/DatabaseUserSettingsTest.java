@@ -11,9 +11,8 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
 /**
- * Both profiles connect twice: Flyway as the owner of the schema, the application as a user that
- * may only read and write rows (DatabaseRolesTest checks the rights). The files are read instead of
- * starting the application with a profile (see ProdLoggingSettingsTest).
+ * İki profil de iki kez bağlanır: Flyway şema sahibi, uygulama sadece satır yetkili kullanıcı
+ * olarak. Dosyalar okunur, uygulama başlatılmaz.
  */
 class DatabaseUserSettingsTest {
 

@@ -16,9 +16,8 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 /**
- * The read timeout is really applied. A local socket accepts the connection and never answers; the
- * call must give up after the configured time instead of waiting forever. Only the loopback
- * interface is used; nothing leaves the machine.
+ * Read timeout gerçekten uygulanıyor mu: yerel soket bağlantıyı kabul eder ve hiç cevap vermez.
+ * Sadece loopback kullanılır.
  */
 class OpenLibraryTimeoutTest {
 
@@ -39,8 +38,7 @@ class OpenLibraryTimeoutTest {
                                     new StaticListableBeanFactory()
                                             .getBeanProvider(RestClientCustomizer.class));
 
-            // Without a read timeout the call would wait forever (tried: the test hung). The outer
-            // limit turns that into a failure.
+            // Read timeout olmasa çağrı sonsuza kadar beklerdi; dış sınır bunu hataya çevirir.
             long start = System.nanoTime();
             assertTimeoutPreemptively(
                     Duration.ofSeconds(10),
@@ -62,7 +60,7 @@ class OpenLibraryTimeoutTest {
         try (Socket ignored = server.accept()) {
             Thread.sleep(30_000);
         } catch (Exception e) {
-            // The test closed the socket.
+            // Soketi test kapattı.
         }
     }
 }

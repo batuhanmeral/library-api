@@ -4,8 +4,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 
 /**
- * Machine-readable error codes sent in the {@code errorCode} field of every error response. Clients
- * branch on these codes; the human-readable {@code detail} text may change.
+ * Her hata cevabının {@code errorCode} alanı. İstemciler bu koda göre davranır; {@code detail}
+ * metni değişebilir.
  */
 public enum ErrorCode {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST),
@@ -26,18 +26,21 @@ public enum ErrorCode {
     MEMBER_HAS_OVERDUE_LOAN(HttpStatus.UNPROCESSABLE_CONTENT),
     NOT_A_MEMBER(HttpStatus.UNPROCESSABLE_CONTENT),
     ISBN_NOT_FOUND(HttpStatus.UNPROCESSABLE_CONTENT),
-    /** Too many sign-in or registration requests from one client (Retry-After says how long). */
+    /**
+     * Bir istemciden çok fazla giriş ya da kayıt isteği (ne kadar bekleneceğini Retry-After
+     * söyler).
+     */
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS),
     EXTERNAL_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     REQUEST_REJECTED(HttpStatus.BAD_REQUEST),
-    /** No token where one is needed. */
+    /** Token gereken yerde token yok. */
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED),
-    /** A token was sent but is malformed, forged or expired. */
+    /** Gelen token bozuk, sahte ya da süresi dolmuş. */
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED),
-    /** Login with a wrong password or an address that has no account. */
+    /** Yanlış şifre ya da hesabı olmayan e-posta ile giriş. */
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED),
-    /** A valid token whose user may not do this. */
+    /** Geçerli token, ama kullanıcının buna yetkisi yok. */
     ACCESS_DENIED(HttpStatus.FORBIDDEN),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
@@ -51,7 +54,7 @@ public enum ErrorCode {
         return status;
     }
 
-    /** Picks a code for errors raised by Spring MVC itself, based on the response status. */
+    /** Spring MVC'nin kendi hataları için cevap durumuna göre kod seçer. */
     static ErrorCode forStatus(HttpStatusCode status) {
         return switch (status.value()) {
             case 400 -> MALFORMED_REQUEST;

@@ -13,25 +13,17 @@ import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 /**
- * The RestClient for Open Library, with timeouts of its own.
+ * Open Library için kendi timeout'ları olan RestClient.
  *
- * <p>The auto-configured RestClient.Builder already has a request factory (from the global
- * spring.http.clients.* settings) and the customizers applied. Setting another request factory on
- * it afterwards would replace whatever a customizer installed, such as the mock server of
- * {@code @RestClientTest}. This bean is built in the same order as Spring Boot builds its own:
- * request factory first, then every RestClientCustomizer (JSON converters, observations and, in
- * tests, the mock server).
- *
- * <p>Redirects are not followed by the HTTP client: OpenLibraryClient follows the one redirect it
- * expects, and only to an edition on the same host. A redirect to anywhere else (an open redirect
- * on the site, a compromised CDN) would make this application fetch that address and store what it
- * returns.
+ * <p>Spring Boot'un sırasıyla kurulur: önce request factory, sonra RestClientCustomizer'lar; tersi
+ * {@code @RestClientTest}'in mock'unu ezerdi. HTTP istemcisi yönlendirme izlemez; beklenen tek
+ * yönlendirmeyi OpenLibraryClient kendisi izler.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(OpenLibraryProperties.class)
 public class OpenLibraryConfig {
 
-    /** An edition record is a few kilobytes. */
+    /** Bir baskı kaydı birkaç kilobayttır. */
     static final long MAX_RESPONSE_BYTES = 1024 * 1024;
 
     @Bean
@@ -43,8 +35,7 @@ public class OpenLibraryConfig {
                         .withRedirects(HttpRedirects.DONT_FOLLOW);
         RestClient.Builder builder =
                 RestClient.builder()
-                        // The HTTP client on the classpath; here the JDK's
-                        // java.net.http.HttpClient.
+                        // Classpath'teki HTTP istemcisi; burada JDK'nın HttpClient'ı.
                         .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(settings))
                         .baseUrl(properties.baseUrl())
                         .defaultHeader(HttpHeaders.USER_AGENT, properties.userAgent())

@@ -11,9 +11,8 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.mock.env.MockEnvironment;
 
 /**
- * The dev profile adds the demo data (db/dev) and reads .env. Turned on next to prod by mistake, it
- * would create the demo member in the production database; the application refuses to start
- * instead.
+ * dev profili prod ile birlikte açılırsa demo üyeyi production veritabanına koyardı; uygulama
+ * başlamayı reddeder.
  */
 class DevProfileGuardTest {
 
@@ -41,8 +40,7 @@ class DevProfileGuardTest {
     }
 
     /**
-     * Registered in META-INF/spring.factories, so it runs on every start, after the profiles are
-     * known and before anything connects to the database.
+     * META-INF/spring.factories'e kayıtlı: her başlangıçta, veritabanına bağlanmadan önce çalışır.
      */
     @Test
     void theApplicationStopsBeforeItConnectsAnywhere() {

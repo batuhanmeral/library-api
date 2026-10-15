@@ -39,14 +39,14 @@ public class AuthorService {
         return authorMapper.toResponse(saved);
     }
 
-    /** Books show their author's name, so every cached book may hold the old one. */
+    /** Kitaplar yazar adını gösterir, bu yüzden cache'teki her kitap eski adı tutuyor olabilir. */
     @Auditable(action = AuditAction.AUTHOR_UPDATE, target = "#id")
     @CacheEvict(cacheNames = CacheNames.BOOKS, allEntries = true)
     @Transactional
     public AuthorResponse update(Long id, AuthorRequest request) {
         Author author = getAuthor(id);
         authorMapper.updateEntity(request, author);
-        // Dirty checking saves the change; flush so updatedAt is set in the response.
+        // Dirty checking kaydeder; flush, cevapta updatedAt dolu olsun diye.
         authorRepository.flush();
         return authorMapper.toResponse(author);
     }

@@ -4,7 +4,7 @@ import com.batuhanmeral.library.common.error.ApiException;
 import com.batuhanmeral.library.common.error.ErrorCode;
 import java.time.Duration;
 
-/** The client sent more requests than its limit allows; GlobalExceptionHandler answers 429. */
+/** İstemci sınırını aştı; GlobalExceptionHandler 429 döner. */
 public class TooManyRequestsException extends ApiException {
 
     private final Duration retryAfter;
@@ -14,7 +14,7 @@ public class TooManyRequestsException extends ApiException {
         this.retryAfter = retryAfter;
     }
 
-    /** How long until the client's window ends, for the Retry-After header. */
+    /** Pencerenin bitmesine kalan süre, Retry-After için. */
     public Duration getRetryAfter() {
         return retryAfter;
     }

@@ -9,11 +9,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * A rule about two fields of a new book: the title may only be missing when an ISBN is given. A
- * field annotation sees one value, so the rule sits on the class. The violation is reported on the
- * "title" field, so the error response looks like that of any other field rule.
- */
+/** İki alanlı kural: başlık sadece ISBN varken boş olabilir. Hata "title" alanına yazılır. */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = TitleRequiredWithoutIsbn.Validator.class)

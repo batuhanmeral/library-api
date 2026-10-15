@@ -28,13 +28,10 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * The partial unique index (V3) is the last guard against a second open loan of the same book for
- * one member. LoanService checks the rule first, so the index can only be reached when that check
- * is missed. A spy on the repository makes the check answer "no open loan", as a bug or a future
- * code path that forgets the check would: the database still refuses, and the client gets the same
- * answer as from the service check.
+ * Kısmi unique index (V3), bir üyenin aynı kitapta ikinci açık ödüncüne karşı son korumadır. Spy
+ * kontrolü "açık ödünç yok" diye cevaplatır; veritabanı yine reddeder ve istemci aynı cevabı alır.
  *
- * <p>This needs PostgreSQL: H2 has no partial indexes.
+ * <p>PostgreSQL gerekir: H2'de kısmi index yok.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -50,7 +47,7 @@ class OpenLoanIndexTest implements DatabaseTest {
 
     @Autowired private UserRepository userRepository;
 
-    /** A real repository; only the one method stubbed below answers differently. */
+    /** Gerçek repository; sadece aşağıdaki metod farklı cevap verir. */
     @MockitoSpyBean private LoanRepository loanRepository;
 
     private long bookId;
@@ -82,7 +79,7 @@ class OpenLoanIndexTest implements DatabaseTest {
                 .bodyJson()
                 .extractingPath("$.errorCode")
                 .isEqualTo("BOOK_ALREADY_BORROWED");
-        // The failed request changed nothing: one loan, one copy taken.
+        // Başarısız istek hiçbir şey değiştirmedi: tek ödünç, tek kopya.
         assertThat(loanRepository.count()).isEqualTo(1);
         assertThat(bookRepository.findById(bookId).orElseThrow().getAvailableCopies()).isEqualTo(1);
     }

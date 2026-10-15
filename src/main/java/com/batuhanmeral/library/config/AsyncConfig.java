@@ -7,17 +7,16 @@ import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
- * Turns on {@code @Async}: a call to such a method returns at once and the method runs on the task
- * executor Spring Boot configures (applicationTaskExecutor, spring.task.execution.*). Without this
- * the annotation is ignored and the method runs in the caller's thread.
+ * {@code @Async}'i açar: metod Spring Boot'un task executor'ında çalışır, çağrı hemen döner. Bu
+ * olmadan anotasyon yok sayılır.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableAsync
 public class AsyncConfig {
 
     /**
-     * Spring Boot applies this to the executor it configures: tasks keep the request id of the
-     * request that started them.
+     * Spring Boot bunu kendi executor'ına uygular: işler, onları başlatan isteğin request id'sini
+     * taşır.
      */
     @Bean
     TaskDecorator mdcTaskDecorator() {

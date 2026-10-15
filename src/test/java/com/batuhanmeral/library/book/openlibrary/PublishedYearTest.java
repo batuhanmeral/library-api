@@ -5,10 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-/**
- * Open Library's publish_date is free text typed by people. The year is the first group of exactly
- * four digits, if it is a plausible publication year.
- */
+/** publish_date serbest metindir; yıl, makul bir yayın yılıysa tam dört rakamlı ilk gruptur. */
 class PublishedYearTest {
 
     @ParameterizedTest(name = "\"{0}\" -> {1}")

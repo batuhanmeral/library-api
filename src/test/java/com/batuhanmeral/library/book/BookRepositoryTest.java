@@ -53,7 +53,7 @@ class BookRepositoryTest implements DatabaseTest {
             entityManager.persist(book);
         }
         entityManager.flush();
-        // Start the test with an empty persistence context, as a new request would.
+        // Test boş persistence context ile başlasın, yeni bir istek gibi.
         entityManager.clear();
     }
 
@@ -69,10 +69,8 @@ class BookRepositoryTest implements DatabaseTest {
             book.getCategories().size();
         });
 
-        // 1: the books of the page with their authors (entity graph, a join).
-        // 2: the total count, because the page is full and there may be more rows.
-        // 3: the categories of every book on the page at once (@BatchSize).
-        // Without the entity graph and @BatchSize: 2 + 1 per author + 1 per book (N+1).
+        // 1: sayfadaki kitaplar yazarlarıyla (entity graph). 2: toplam sayı. 3: sayfadaki tüm
+        // kitapların kategorileri (@BatchSize). Bunlar olmasa N+1 olurdu.
         assertThat(page.getContent())
                 .extracting(Book::getTitle)
                 .containsExactly("Le Guin's book", "Pratchett's book");
@@ -121,8 +119,7 @@ class BookRepositoryTest implements DatabaseTest {
                         BookSpecifications.matching(criteria), PageRequest.of(0, 20));
 
         assertThat(page.getContent()).extracting(Book::getTitle).containsExactly("Le Guin's book");
-        // A value written into the SQL makes every search a different statement for the
-        // database and the statement caches.
+        // SQL'e yazılan değer her aramayı veritabanı için ayrı bir statement yapardı.
         assertThat(output).contains("like ? escape").doesNotContain("%le gu%");
     }
 

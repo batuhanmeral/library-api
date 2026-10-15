@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.data.jpa.domain.PredicateSpecification;
 import org.springframework.data.jpa.domain.Specification;
 
-/** WHERE clause of GET /loans from the filters that were sent; see BookSpecifications. */
+/** GET /loans filtrelerinden WHERE oluşturur; bkz. BookSpecifications. */
 final class LoanSpecifications {
 
     private LoanSpecifications() {}

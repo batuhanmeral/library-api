@@ -7,11 +7,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Body of POST /auth/register. There is no role field: registration always creates a member, and a
- * "role" sent anyway is ignored like any unknown field.
+ * POST /auth/register gövdesi. Rol alanı yok: kayıt hep üye oluşturur.
  *
- * @param phone optional, in international form (E.164: "+", country code, number), for the SMS
- *     reminders of overdue loans
+ * @param phone isteğe bağlı, E.164 biçiminde ("+" ve ülke kodu); gecikme SMS'leri için
  */
 public record RegisterRequest(
         @NotBlank @Email @Size(max = 254) String email,
@@ -20,7 +18,7 @@ public record RegisterRequest(
         @Pattern(regexp = "\\+[1-9][0-9]{6,14}", message = "must be like +905551234567")
                 String phone) {
 
-    /** The password stays out of logs and error messages that print the request. */
+    /** Şifre, isteği yazdıran log ve hata mesajlarına düşmesin. */
     @Override
     public String toString() {
         return "RegisterRequest[email=%s, fullName=%s, phone=%s]".formatted(email, fullName, phone);

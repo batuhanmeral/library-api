@@ -1,19 +1,18 @@
 package com.batuhanmeral.library.config;
 
 /**
- * Names of the caches, used in the {@code @Cacheable} and {@code @CacheEvict} annotations and in
- * CacheConfig. Constants instead of strings repeated in many places: a typo would create a cache of
- * its own, which no eviction ever reaches.
+ * Cache adları. Tekrarlanan string yerine sabit: yazım hatası hiçbir silmenin ulaşmadığı yeni bir
+ * cache açardı.
  */
 public final class CacheNames {
 
-    /** GET /books/{id}: one BookResponse per book id. */
+    /** GET /books/{id}: kitap id'si başına bir BookResponse. */
     public static final String BOOKS = "books";
 
-    /** GET /categories: the whole list as one entry. */
+    /** GET /categories: listenin tamamı tek kayıt. */
     public static final String CATEGORIES = "categories";
 
-    /** The key of the one entry of CATEGORIES, as a SpEL expression (a string literal). */
+    /** CATEGORIES'in tek kaydının anahtarı, SpEL string literal'i olarak. */
     public static final String ALL = "'all'";
 
     private CacheNames() {}

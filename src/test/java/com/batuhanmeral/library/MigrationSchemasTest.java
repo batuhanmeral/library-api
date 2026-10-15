@@ -8,12 +8,11 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * One database can hold the application twice: docker-compose.yml runs the dev profile in the
- * public schema and the application container in the "app" schema. Tables belong to a schema, but
- * an extension such as pg_trgm exists once per database, in the schema it was created in; the
- * migrations must work whichever schema comes first.
+ * Bir veritabanında uygulama iki kez olabilir: compose dev'i public, uygulama container'ını "app"
+ * şemasında çalıştırır. pg_trgm gibi extension veritabanı başına birdir; migration'lar hangi şema
+ * önce gelirse gelsin çalışmalı.
  *
- * <p>A server of its own, so the order is known; Flyway is run directly, without Spring.
+ * <p>Sıra belli olsun diye kendi sunucusu var; Flyway Spring olmadan çalıştırılır.
  */
 class MigrationSchemasTest {
 

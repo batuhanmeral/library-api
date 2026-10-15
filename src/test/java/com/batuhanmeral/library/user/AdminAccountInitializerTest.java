@@ -17,7 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 class AdminAccountInitializerTest {
 
-    /** Strength 4, the lowest: the hash is still real, but takes milliseconds instead of ~100. */
+    /** Strength 4, en düşüğü: hash gerçek ama 100 ms yerine milisaniyeler sürer. */
     private final PasswordEncoder encoder = new BCryptPasswordEncoder(4);
 
     private final UserRepository users = mock(UserRepository.class);
@@ -39,7 +39,7 @@ class AdminAccountInitializerTest {
 
     @Test
     void leavesAnExistingAdministratorAsItIs() throws Exception {
-        // Restarting must not reset a password the administrator has changed since.
+        // Yeniden başlatma, admin'in sonradan değiştirdiği şifreyi sıfırlamamalı.
         when(users.findByEmail("admin@example.com"))
                 .thenReturn(
                         Optional.of(new User("admin@example.com", "{noop}x", "Ada", Role.ADMIN)));
@@ -51,8 +51,7 @@ class AdminAccountInitializerTest {
 
     @Test
     void refusesToStartWhenTheAddressBelongsToAMember() {
-        // Someone registered the address first: starting anyway would leave the library without
-        // the administrator it was configured with, and only a warning in the log would say so.
+        // Adresi önce başkası kaydetti; yine de başlamak kütüphaneyi admin'siz bırakırdı.
         when(users.findByEmail("admin@example.com"))
                 .thenReturn(
                         Optional.of(new User("admin@example.com", "{noop}x", "Eve", Role.MEMBER)));

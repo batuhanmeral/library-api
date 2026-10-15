@@ -40,8 +40,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 /**
- * POST /books with an ISBN fills in missing details from Open Library. The client is a mock: these
- * tests are about the rules of the endpoint, OpenLibraryClientTest is about the HTTP calls.
+ * ISBN'li POST /books eksikleri Open Library'den doldurur. İstemci mock'tur; HTTP çağrıları
+ * OpenLibraryClientTest'te.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -272,7 +272,7 @@ class BookIsbnLookupTest implements DatabaseTest {
                 .hasStatus(HttpStatus.CREATED);
     }
 
-    /** Adds the required totalCopies and authorId to the given fields. */
+    /** Verilen alanlara zorunlu totalCopies ve authorId ekler. */
     private MvcTestResult create(String json) {
         String body =
                 json.replaceFirst(

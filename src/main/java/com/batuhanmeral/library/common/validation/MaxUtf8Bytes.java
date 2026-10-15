@@ -14,9 +14,8 @@ import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
 
 /**
- * The text takes at most {@code value} bytes in UTF-8. {@code @Size} counts characters, and one
- * character may take up to four bytes. Used for passwords: BCrypt reads only the first 72 bytes and
- * refuses to hash a longer one.
+ * Metin UTF-8'de en fazla {@code value} bayt. {@code @Size} karakter sayar; BCrypt sadece ilk 72
+ * baytı okur.
  */
 @Target({FIELD, PARAMETER, RECORD_COMPONENT})
 @Retention(RUNTIME)

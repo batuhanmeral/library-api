@@ -12,8 +12,8 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 
 /**
- * In production the API description and Swagger UI are off unless API_DOCS_ENABLED=true. The file
- * is read instead of starting the application with the prod profile (see ProdLoggingSettingsTest).
+ * Production'da API_DOCS_ENABLED=true olmadıkça API açıklaması ve Swagger UI kapalı. Dosya okunur,
+ * uygulama başlatılmaz.
  */
 class ProdApiDocsSettingsTest {
 

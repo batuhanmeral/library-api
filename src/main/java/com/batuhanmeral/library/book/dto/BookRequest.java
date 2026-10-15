@@ -11,11 +11,10 @@ import jakarta.validation.constraints.Size;
 import java.util.Set;
 
 /**
- * Body of POST and PUT requests for books. Relations are sent as ids; the service loads the
- * entities. The available copies are not sent: the service derives them from the total.
+ * Kitap POST ve PUT gövdesi. İlişkiler id ile gelir; rafta kalan kopya sayısını service hesaplar.
  *
- * @param isbn ISBN-10 or ISBN-13, digits only (an ISBN-10 may end with X)
- * @param categoryIds may be omitted or empty; at most {@value #MAX_CATEGORIES}
+ * @param isbn ISBN-10 ya da ISBN-13, sadece rakam (ISBN-10 X ile bitebilir)
+ * @param categoryIds boş olabilir; en fazla {@value #MAX_CATEGORIES}
  */
 public record BookRequest(
         @Pattern(regexp = "\\d{9}[\\dX]|\\d{13}", message = "must be 10 or 13 digits") String isbn,
@@ -27,6 +26,6 @@ public record BookRequest(
         @NotNull Long authorId,
         @Size(max = MAX_CATEGORIES) Set<@NotNull Long> categoryIds) {
 
-    /** Keeps one request from making the service load and link an unbounded number of rows. */
+    /** Tek istek sınırsız sayıda satır yükletmesin. */
     public static final int MAX_CATEGORIES = 20;
 }

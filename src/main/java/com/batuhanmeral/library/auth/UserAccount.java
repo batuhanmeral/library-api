@@ -8,10 +8,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /**
- * A user as Spring Security's login check needs it: the address, the password hash and the
- * authorities. Only used while checking a login; requests after that carry an AuthenticatedUser
- * read from the token. The User entity itself does not implement UserDetails, so the entity does
- * not depend on Spring Security.
+ * Spring Security'nin giriş kontrolü için kullanıcı. Sadece girişte kullanılır; User entity'si
+ * UserDetails'e bağımlı olmasın diye ayrı.
  */
 record UserAccount(Long id, String email, String passwordHash, Role role) implements UserDetails {
 
@@ -25,7 +23,7 @@ record UserAccount(Long id, String email, String passwordHash, Role role) implem
         return passwordHash;
     }
 
-    /** "ROLE_" is the prefix hasRole("ADMIN") looks for. */
+    /** hasRole("ADMIN") "ROLE_" önekini arar. */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));

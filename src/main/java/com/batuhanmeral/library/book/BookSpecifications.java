@@ -8,13 +8,11 @@ import org.springframework.data.jpa.domain.PredicateSpecification;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
- * Builds the WHERE clause of a book search from the filters that were sent. Each filter is a small
- * predicate; {@link #matching} joins the ones that apply with AND. One repository method serves
- * every combination of filters, where derived queries would need one method per combination.
+ * Gönderilen filtrelerden WHERE oluşturur; tek repository metodu her filtre kombinasyonuna yeter.
  */
 final class BookSpecifications {
 
-    /** Marks the next character of a LIKE pattern as a plain character. */
+    /** LIKE desenindeki sonraki karakteri düz karakter yapar. */
     private static final char ESCAPE = '\\';
 
     private BookSpecifications() {}
@@ -39,14 +37,13 @@ final class BookSpecifications {
         if (criteria.yearTo() != null) {
             filters.add(publishedUntil(criteria.yearTo()));
         }
-        // allOf of an empty list is unrestricted(): no WHERE clause, every book matches.
+        // Boş liste: WHERE yok, her kitap eşleşir.
         return Specification.where(PredicateSpecification.allOf(filters));
     }
 
     /**
-     * The pattern is passed as a plain String, so Hibernate binds it as a parameter ({@code like ?
-     * escape '\'}); {@code cb.literal(...)} would write it into the SQL text. It is lowercased here
-     * with fixed rules (Locale.ROOT), the column with the database's lower().
+     * Desen parametre olarak bağlanır, SQL metnine yazılmaz. Locale.ROOT ile küçültülür, sütun ise
+     * veritabanının lower()'ı ile.
      */
     static PredicateSpecification<Book> titleContains(String text) {
         String pattern = "%" + escapeLike(text.toLowerCase(Locale.ROOT)) + "%";
@@ -54,13 +51,12 @@ final class BookSpecifications {
     }
 
     static PredicateSpecification<Book> hasAuthor(Long authorId) {
-        // author.id is the author_id column of books; no join is needed for it.
+        // author.id books tablosundaki author_id; join gerekmez.
         return (book, cb) -> cb.equal(book.get("author").get("id"), authorId);
     }
 
     static PredicateSpecification<Book> hasCategory(Long categoryId) {
-        // An inner join on book_categories. A book has a category at most once, so it is not
-        // returned twice. The join only filters: Book.categories is loaded separately, in full.
+        // book_categories ile inner join; sadece filtreler, kitap iki kez dönmez.
         return (book, cb) -> cb.equal(book.join("categories").get("id"), categoryId);
     }
 
@@ -80,10 +76,7 @@ final class BookSpecifications {
         return (book, cb) -> cb.lessThanOrEqualTo(book.get("publishedYear"), year);
     }
 
-    /**
-     * In LIKE, % matches any text and _ any single character. A user who searches for "50%" means
-     * the characters 5, 0 and %, so those two (and the escape character itself) are escaped.
-     */
+    /** LIKE'ta % ve _ özel; "50%" arayan kullanıcı için bunlar (ve kaçış karakteri) kaçırılır. */
     static String escapeLike(String text) {
         return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }

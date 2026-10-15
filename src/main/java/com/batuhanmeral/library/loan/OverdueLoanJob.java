@@ -20,21 +20,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Marks active loans past their due date as OVERDUE and texts each member concerned once. Run by
- * OverdueLoanScheduler every night and by POST /admin/jobs/overdue-check.
+ * Süresi geçmiş aktif ödünçleri OVERDUE yapar ve her üyeye bir SMS atar. Her gece
+ * OverdueLoanScheduler ve POST /admin/jobs/overdue-check çalıştırır.
  *
- * <ul>
- *   <li>Batches: members are handled {@code batch-size} at a time, each batch in its own
- *       transaction (TransactionTemplate). No transaction holds locks on thousands of rows, and
- *       when a batch fails, the batches before it stay committed; the run stops and the next run
- *       goes on from there.
- *   <li>The SMS for a batch goes out after its transaction has committed; a rolled back batch sends
- *       nothing.
- *   <li>Running it again is harmless: it only looks at ACTIVE loans, and the ones it handled are
- *       OVERDUE now.
- *   <li>One run at a time per application instance: {@link #tryClaim()} is the shared guard of the
- *       scheduler and the endpoint. Several instances need a lock in the database (ShedLock).
- * </ul>
+ * <p>Üyeler {@code batch-size} kadarlık gruplar halinde, her grup kendi transaction'ında işlenir;
+ * SMS commit'ten sonra gider. Tekrar çalıştırmak zararsızdır. Uygulama başına aynı anda tek çalışma
+ * ({@link #tryClaim()}).
  */
 @Slf4j
 @Component
@@ -49,16 +40,16 @@ public class OverdueLoanJob {
     private final LoanProperties loanProperties;
     private final Clock clock;
 
-    /** Reminders go out by SMS: the qualifier picks the SMS bean over the {@code @Primary} one. */
+    /** Hatırlatmalar SMS ile gider: qualifier {@code @Primary} yerine SMS bean'ini seçer. */
     @Qualifier("sms")
     private final NotificationService smsNotificationService;
 
-    /** Claims the job for the caller; false while another run holds it. */
+    /** İşi çağıran için alır; başka çalışma varken false. */
     boolean tryClaim() {
         return running.compareAndSet(false, true);
     }
 
-    /** Gives the claim back without running, for a caller that could not start the run. */
+    /** Başlatamayan çağıran için hakkı geri verir. */
     void release() {
         running.set(false);
     }
@@ -67,7 +58,7 @@ public class OverdueLoanJob {
         return running.get();
     }
 
-    /** Claims the job and runs it; for callers that do not need to start it elsewhere. */
+    /** Hakkı alıp işi çalıştırır. */
     public OverdueCheckResult run() {
         if (!tryClaim()) {
             throw new IllegalStateException("The overdue check is already running.");
@@ -76,9 +67,8 @@ public class OverdueLoanJob {
     }
 
     /**
-     * Runs the job after a successful {@link #tryClaim()} and releases the claim at the end. Only
-     * the scheduler, the runner and this class call it: a call without the claim would release
-     * someone else's.
+     * Başarılı {@link #tryClaim()} sonrası çalışır ve sonunda hakkı bırakır; hak almadan çağırmak
+     * başkasınınkini bırakırdı.
      */
     OverdueCheckResult runClaimed() {
         try {
@@ -86,8 +76,8 @@ public class OverdueLoanJob {
             int loansMarked = 0;
             int remindersSent = 0;
             Batch batch;
-            // The run ends when no member is left, not when a batch marked nothing: the loans of
-            // a whole batch may have been returned between its two queries.
+            // Grup hiçbir şey işaretlemediğinde değil, üye kalmadığında biter; iki sorgu arasında
+            // ödünçler iade edilmiş olabilir.
             while ((batch = markNextBatch(today)).members() > 0) {
                 for (Reminder reminder : batch.reminders()) {
                     loansMarked += reminder.loanCount();
@@ -107,7 +97,7 @@ public class OverdueLoanJob {
         }
     }
 
-    /** One transaction: the next members with loans past due, their loans marked overdue. */
+    /** Tek transaction: süresi geçmiş sonraki üyeler, ödünçleri OVERDUE olarak. */
     private Batch markNextBatch(LocalDate today) {
         return transactionTemplate.execute(status -> {
             List<Long> memberIds =
@@ -116,8 +106,7 @@ public class OverdueLoanJob {
             if (memberIds.isEmpty()) {
                 return new Batch(0, List.of());
             }
-            // One query for the members; the loans' member proxies then resolve from the
-            // persistence context instead of one query each.
+            // Üyeler için tek sorgu; ödünçlerin üye proxy'leri persistence context'ten çözülür.
             Map<Long, User> members =
                     userRepository.findAllById(memberIds).stream()
                             .collect(Collectors.toMap(User::getId, Function.identity()));
@@ -148,13 +137,13 @@ public class OverdueLoanJob {
                             .formatted(reminder.loanCount(), reminder.firstDueDate()));
             return true;
         } catch (RuntimeException e) {
-            // The loans stay overdue; one failed message must not stop the reminders for others.
+            // Ödünçler gecikmiş kalır; bir mesajın hatası diğerlerini durdurmamalı.
             log.warn("Overdue reminder could not be sent: {}", e.getClass().getSimpleName());
             return false;
         }
     }
 
-    /** The members a batch looked at, and the reminders for those whose loans it marked. */
+    /** Grubun baktığı üye sayısı ve işaretlenenler için hatırlatmalar. */
     private record Batch(int members, List<Reminder> reminders) {}
 
     private record Reminder(String email, String phone, int loanCount, LocalDate firstDueDate) {

@@ -7,7 +7,7 @@ import org.mapstruct.MappingConstants;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.ReportingPolicy;
 
-// unmappedTargetPolicy = ERROR: compilation fails if a target field is left unmapped.
+// unmappedTargetPolicy = ERROR: eşlenmeyen hedef alan derlemeyi düşürür.
 @Mapper(
         componentModel = MappingConstants.ComponentModel.SPRING,
         unmappedTargetPolicy = ReportingPolicy.ERROR)
