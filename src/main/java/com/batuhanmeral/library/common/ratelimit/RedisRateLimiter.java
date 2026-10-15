@@ -21,6 +21,8 @@ public class RedisRateLimiter {
     /** Cache anahtarlarıyla aynı önek. */
     static final String KEY_PREFIX = "library-api:rate-limit:";
 
+    // Betik Lua dizisi döner; RedisScript.of tip için Class ister, List<Long>.class yazılamaz.
+    @SuppressWarnings("rawtypes")
     private static final RedisScript<List> COUNT =
             RedisScript.of(
                     """

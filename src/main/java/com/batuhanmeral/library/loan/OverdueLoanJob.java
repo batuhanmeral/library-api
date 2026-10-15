@@ -75,10 +75,11 @@ public class OverdueLoanJob {
             LocalDate today = LocalDate.now(clock);
             int loansMarked = 0;
             int remindersSent = 0;
-            Batch batch;
             // Grup hiçbir şey işaretlemediğinde değil, üye kalmadığında biter; iki sorgu arasında
             // ödünçler iade edilmiş olabilir.
-            while ((batch = markNextBatch(today)).members() > 0) {
+            for (Batch batch = markNextBatch(today);
+                    batch.members() > 0;
+                    batch = markNextBatch(today)) {
                 for (Reminder reminder : batch.reminders()) {
                     loansMarked += reminder.loanCount();
                     if (sendReminder(reminder)) {

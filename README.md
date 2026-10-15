@@ -330,11 +330,13 @@ To build only the image: `docker build -t library-api .`
 ## Test
 
 ```bash
-./mvnw verify            # compile, run the tests and check code format
+./mvnw verify            # compile with static analysis, run the tests and check code format
 ./mvnw spotless:apply    # fix code format
 ```
 
 The tests run against real PostgreSQL and Redis in Docker containers, started and removed by the test run ([Testcontainers](https://testcontainers.com)); the first run downloads the images. `./mvnw verify` also writes a test coverage report to `target/site/jacoco/index.html`.
+
+The compiler runs [Error Prone](https://errorprone.info) and javac's lint checks on the main and test code. Any finding fails the build, a warning too.
 
 GitHub Actions runs `./mvnw verify` on every push and pull request, then builds the image, starts it with PostgreSQL and Redis, and scans it with [Trivy](https://trivy.dev): the run fails on a high or critical vulnerability that has a fix. The same checks run every Monday, so a vulnerability found after the last push shows up too. To scan a local image the same way:
 

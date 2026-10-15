@@ -56,6 +56,8 @@ class OpenLibraryTimeoutTest {
         }
     }
 
+    // Soket kullanılmaz, sadece bağlantıyı cevapsız açık tutmak için try içinde.
+    @SuppressWarnings("try")
     private static void acceptAndHold(ServerSocket server) {
         try (Socket ignored = server.accept()) {
             Thread.sleep(30_000);

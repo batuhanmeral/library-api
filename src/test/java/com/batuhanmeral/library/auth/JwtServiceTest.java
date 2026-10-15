@@ -42,7 +42,7 @@ class JwtServiceTest {
         // JWT imzalıdır, şifreli değil: ortadaki kısmı herkes okur.
         String payload =
                 new String(
-                        Base64.getUrlDecoder().decode(token.split("\\.")[1]),
+                        Base64.getUrlDecoder().decode(token.split("\\.", -1)[1]),
                         StandardCharsets.UTF_8);
         assertThat(payload)
                 .contains("\"sub\":\"42\"", "\"role\":\"ADMIN\"", "\"iss\":\"library-api\"")
@@ -79,7 +79,8 @@ class JwtServiceTest {
 
     @Test
     void aChangedPayloadBreaksTheSignature() {
-        String[] parts = jwt.issue(new AuthenticatedUser(42L, Role.MEMBER)).token().split("\\.");
+        String[] parts =
+                jwt.issue(new AuthenticatedUser(42L, Role.MEMBER)).token().split("\\.", -1);
         String payload =
                 new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8)
                         .replace("MEMBER", "ADMIN");

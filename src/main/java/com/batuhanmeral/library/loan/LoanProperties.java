@@ -24,6 +24,8 @@ public record LoanProperties(
         @NotNull @Valid OverdueCheck overdueCheck) {
 
     /**
+     * Gece işinin ayarları.
+     *
      * @param cron işin çalışma zamanı, library.time-zone'a göre okunan Spring cron ifadesi
      * @param batchSize işin bir transaction'da işlediği üye sayısı
      */

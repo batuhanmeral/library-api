@@ -24,6 +24,7 @@
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<jacoco.version>0.8.16</jacoco.version>
+		<error-prone.version>2.52.0</error-prone.version>
 		<springdoc.version>3.2.0</springdoc.version>
 	</properties>
 
@@ -196,7 +197,27 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
+					<!-- Static analysis while compiling: javac's lint checks and Error Prone's bug
+					     patterns, and any warning fails the build (-Werror). Two lint checks are off:
+					     "serial" (the exceptions are never Java-serialized, only written as JSON) and
+					     "processing" (it lists every annotation no processor claims). Generated code
+					     (MapStruct mappers) is skipped. Error Prone uses javac internals, so
+					     .mvn/jvm.config opens them to Maven's JVM, where the compiler runs. -->
+					<compilerArgs>
+						<arg>-Xlint:all,-serial,-processing</arg>
+						<arg>-Werror</arg>
+						<arg>-XDcompilePolicy=simple</arg>
+						<arg>--should-stop=ifError=FLOW</arg>
+						<!-- Error Prone requires it on JDK 21 (CI, Dockerfile); later JDKs ignore it. -->
+						<arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+						<arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-(test-)?sources/.*</arg>
+					</compilerArgs>
 					<annotationProcessorPaths>
+						<path>
+							<groupId>com.google.errorprone</groupId>
+							<artifactId>error_prone_core</artifactId>
+							<version>${error-prone.version}</version>
+						</path>
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>

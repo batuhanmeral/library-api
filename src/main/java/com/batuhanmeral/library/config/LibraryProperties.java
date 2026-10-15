@@ -18,6 +18,8 @@ import org.springframework.validation.annotation.Validated;
 public record LibraryProperties(@NotNull ZoneId timeZone, @NotNull @Valid Scheduling scheduling) {
 
     /**
+     * Zamanlanmış işlerin ayarları.
+     *
      * @param enabled zamanlanmış işler kendiliğinden çalışır mı (bkz. SchedulingConfig); testlerde
      *     kapalı
      */

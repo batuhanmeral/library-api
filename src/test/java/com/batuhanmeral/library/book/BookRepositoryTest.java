@@ -9,6 +9,7 @@ import com.batuhanmeral.library.category.Category;
 import com.batuhanmeral.library.config.JpaAuditingConfig;
 import jakarta.persistence.EntityManagerFactory;
 import java.util.List;
+import org.hibernate.Hibernate;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,7 +67,7 @@ class BookRepositoryTest implements DatabaseTest {
                         Specification.unrestricted(), PageRequest.of(0, 2, Sort.by("title")));
         page.forEach(book -> {
             book.getAuthor().getName();
-            book.getCategories().size();
+            Hibernate.initialize(book.getCategories());
         });
 
         // 1: sayfadaki kitaplar yazarlarıyla (entity graph). 2: toplam sayı. 3: sayfadaki tüm
@@ -86,7 +87,7 @@ class BookRepositoryTest implements DatabaseTest {
 
         Book book = bookRepository.findById(id).orElseThrow();
         book.getAuthor().getName();
-        book.getCategories().size();
+        Hibernate.initialize(book.getCategories());
 
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
     }
@@ -103,7 +104,7 @@ class BookRepositoryTest implements DatabaseTest {
                         PageRequest.of(0, 2, Sort.by("title")));
         page.forEach(book -> {
             book.getAuthor().getName();
-            book.getCategories().size();
+            Hibernate.initialize(book.getCategories());
         });
 
         assertThat(page.getTotalElements()).isEqualTo(3);
