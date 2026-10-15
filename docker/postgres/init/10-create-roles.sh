@@ -18,6 +18,20 @@ set -e
 : "${DB_APP_USER:?set DB_APP_USER in .env}"
 : "${DB_APP_PASSWORD:?set DB_APP_PASSWORD in .env}"
 
+fail() {
+    echo "10-create-roles.sh: $1" >&2
+    exit 1
+}
+
+# Three different users. A name that is already taken would make CREATE ROLE
+# fail, and PostgreSQL logs a failed statement with its text, the password too.
+[ "$DB_OWNER_USER" != "$POSTGRES_USER" ] || fail "DB_OWNER_USER must differ from POSTGRES_USER"
+[ "$DB_APP_USER" != "$POSTGRES_USER" ] || fail "DB_APP_USER must differ from POSTGRES_USER"
+[ "$DB_APP_USER" != "$DB_OWNER_USER" ] || fail "DB_APP_USER must differ from DB_OWNER_USER"
+# The placeholder of .env.example is known to everybody.
+[ "$DB_OWNER_PASSWORD" != "change-me" ] || fail "DB_OWNER_PASSWORD is still change-me"
+[ "$DB_APP_PASSWORD" != "change-me" ] || fail "DB_APP_PASSWORD is still change-me"
+
 # \getenv reads the values inside psql, so the passwords never appear on a
 # command line (where ps would show them). :"name" quotes an identifier and
 # :'name' a string literal, so no value can break out of the statement.
@@ -41,6 +55,8 @@ ALTER DATABASE :"db" OWNER TO :"owner";
 -- gets temporary tables.
 REVOKE ALL ON DATABASE :"db" FROM PUBLIC;
 GRANT CONNECT ON DATABASE :"db" TO :"app";
+-- The same for the server's own database, which neither user needs.
+REVOKE ALL ON DATABASE postgres FROM PUBLIC;
 
 -- What the owner creates later (the schemas and tables of the migrations) is
 -- open to the application user for rows only. Default privileges apply to new

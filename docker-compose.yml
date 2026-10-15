@@ -35,9 +35,13 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     # Only the volume is written to; the server's socket and lock file go to a
-    # tmpfs.
+    # small tmpfs, where nothing may be executed.
     read_only: true
-    tmpfs: [/var/run/postgresql, /tmp]
+    tmpfs:
+      - /var/run/postgresql:rw,noexec,nosuid,size=1m
+      - /tmp:rw,noexec,nosuid,size=64m
+    mem_limit: 512m
+    pids_limit: 256
     healthcheck:
       # $$ escapes Compose interpolation; the variables are read inside the container.
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
@@ -58,7 +62,10 @@ services:
     security_opt: ["no-new-privileges:true"]
     # Nothing is written to disk, so the file system can be read-only.
     read_only: true
-    tmpfs: [/data]
+    tmpfs: ["/data:rw,noexec,nosuid,size=16m"]
+    # maxmemory (64 MB) plus the server's own memory.
+    mem_limit: 128m
+    pids_limit: 64
     # The password is read from the environment inside the container ($$ escapes
     # Compose interpolation), so it does not appear in the compose file.
     command:
