@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Duration;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -22,7 +23,9 @@ public record RateLimitProperties(
 
     /**
      * At most {@code limit} requests in a window of {@code window}. The window starts with the
-     * first request and does not slide: after it ends, the client has the full limit again.
+     * first request and does not slide: after it ends, the client has the full limit again. At
+     * least one second: Redis would drop a counter with a shorter expiry at once, and the limit
+     * would never be reached.
      */
-    public record Rule(@Positive int limit, @NotNull Duration window) {}
+    public record Rule(@Positive int limit, @NotNull @DurationMin(seconds = 1) Duration window) {}
 }

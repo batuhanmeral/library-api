@@ -18,32 +18,45 @@ import java.util.regex.Pattern;
  */
 final class ClientAddress {
 
-    private static final Pattern IPV4 = Pattern.compile("\\d{1,3}(\\.\\d{1,3}){3}");
+    private static final Pattern IPV4 =
+            Pattern.compile(
+                    "((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)");
 
-    /** Hex digits and dots with at least one colon, and a zone after "%". */
+    /**
+     * Starts with a hex digit or a colon and has a colon: InetAddress only parses such a string as
+     * a literal and never asks DNS for it. A zone may follow after "%".
+     */
     private static final Pattern IPV6 =
-            Pattern.compile("[0-9A-Fa-f.]*:[0-9A-Fa-f:.]{1,44}(%[\\w.-]{1,32})?");
+            Pattern.compile("[0-9A-Fa-f:][0-9A-Fa-f.]*:[0-9A-Fa-f:.]{0,44}(%[\\w.-]{1,32})?");
+
+    /**
+     * Every value that is not an address shares this one key, so that odd values cannot each get a
+     * fresh counter.
+     */
+    static final String INVALID = "invalid";
 
     private ClientAddress() {}
 
     static String keyOf(String remoteAddress) {
         if (remoteAddress == null) {
-            return "unknown";
+            return INVALID;
         }
         if (IPV4.matcher(remoteAddress).matches()) {
             return remoteAddress;
         }
         if (!IPV6.matcher(remoteAddress).matches()) {
-            // Not an address: a servlet container always gives one, so this is kept as it is.
-            return remoteAddress;
+            // A servlet container always gives an address; this only happens if the value comes
+            // from somewhere else (a forwarded header).
+            return INVALID;
         }
         InetAddress address;
         try {
-            // A host name never contains a colon, so getByName only parses here and never asks
-            // DNS. (InetAddress.ofLiteral, which never looks anything up, is Java 22.)
+            // A string that starts with a hex digit or ":" and has a colon is parsed as a literal
+            // and never looked up. (InetAddress.ofLiteral, which never looks anything up, is
+            // Java 22.)
             address = InetAddress.getByName(stripZone(remoteAddress));
         } catch (UnknownHostException e) {
-            return remoteAddress;
+            return INVALID;
         }
         if (address instanceof Inet4Address) {
             // An IPv4-mapped IPv6 address ("::ffff:198.51.100.7") is that IPv4 client.

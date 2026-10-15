@@ -16,9 +16,11 @@ class ClientAddressTest {
         "2001:0DB8:0001:0002:ffff:ffff:ffff:ffff, 2001:db8:1:2::/64",
         "fe80::1%eth0, fe80:0:0:0::/64",
         "::1, 0:0:0:0::/64",
-        // Not an address (a servlet container always gives one): kept as it is, never looked up
-        // in DNS.
-        "example.com, example.com"
+        // Not an address (a servlet container always gives one): one shared bucket, so odd
+        // values cannot each get a counter of their own, and never a DNS lookup.
+        "example.com, invalid",
+        ".:a, invalid",
+        "999.1.1.1, invalid"
     })
     void aClientIsCountedByItsAddressOrItsIpv6Network(String remoteAddress, String key) {
         assertThat(ClientAddress.keyOf(remoteAddress)).isEqualTo(key);
